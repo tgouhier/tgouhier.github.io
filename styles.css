@@ -47,6 +47,7 @@ h1,h2,h3{
   line-height:1.14;
   margin:0;
 }
+
 p{margin:0 0 1rem}
 p:last-child{margin-bottom:0}
 
@@ -98,12 +99,12 @@ main{padding:38px 0 110px}
 .block{padding:42px 0;border-top:1px solid var(--line)}
 .block:first-of-type{border-top:0;padding-top:0}
 @media (min-width:960px){.block{padding:54px 0}}
-.blockhead{font-size:.8rem;font-weight:600;font-stretch:100%;letter-spacing:.01em;color:var(--muted);margin:0 0 1.5rem}
+.blockhead{font-size:1rem;font-weight:600;font-stretch:100%;letter-spacing:.01em;color:var(--muted);margin:0 0 1rem}
 
 /* ---------- home hero ---------- */
 .hero h1{
-  font-size:clamp(2.2rem,5.4vw,3.7rem);line-height:1;
-  letter-spacing:-.026em;margin-bottom:1.1rem;max-width:15ch;font-weight:600;
+  font-size:clamp(1.5rem,3.4vw,3.7rem);line-height:1;
+  letter-spacing:-.026em;margin-bottom:1.1rem;max-width:18ch;font-weight:600;
 }
 .lede{font-size:clamp(1.05rem,1.9vw,1.26rem);line-height:1.5;max-width:38ch;margin:0 0 2.3rem;color:var(--text);font-weight:350}
 .lede em{font-style:normal;color:var(--verd)}
@@ -144,7 +145,7 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 /* ---------- research ---------- */
 .topic{margin-bottom:2.6rem;max-width:60ch}
 .topic:last-child{margin-bottom:0}
-.topic h3{font-size:1.32rem;margin-bottom:.55rem}
+.topic h3{font-size:1.32rem;margin-bottom:.55rem;color: var(--tide)}
 .topic .tag{font-size:.78rem;color:var(--muted);display:block;margin-top:.7rem;line-height:1.5}
 
 .qlist{list-style:none;margin:0;padding:0;max-width:60ch}
@@ -171,8 +172,9 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 /* ---------- teaching ---------- */
 .course{padding:18px 0;border-bottom:1px solid var(--line);max-width:60ch}
 .course:first-of-type{border-top:1px solid var(--line)}
-.course h3{font-size:1.08rem;margin-bottom:.25rem}
-.course p{margin:0;font-size:.93rem;color:var(--muted)}
+/*.course h3{font-size:1.08rem;margin-bottom:.25rem} */
+.course h3 {font-size: 1.32rem;margin-bottom: .55rem;color: var(--tide)}
+/* .course p{margin:0;font-size:.93rem;color:var(--muted)} */
 .course .code{font-size:.78rem;color:var(--brass);display:block;margin-bottom:.25rem;font-weight:500}
 .course .term{font-size:.78rem;color:var(--muted);display:block;margin-top:.4rem}
 
@@ -183,7 +185,7 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 /* ---------- contact ---------- */
 .cgrid{display:grid;gap:1.8rem;max-width:60ch}
 @media (min-width:620px){.cgrid{grid-template-columns:1fr 1fr}}
-.cgrid h3{font-size:.8rem;font-weight:600;font-stretch:100%;color:var(--muted);margin-bottom:.35rem}
+.cgrid h3{font-size:1rem;font-weight:600;font-stretch:100%;color:var(--muted);margin-bottom:.35rem}
 .cgrid p{margin:0;font-size:.94rem;line-height:1.6}
 
 .colophon{font-size:.78rem;color:var(--muted);padding-top:44px;line-height:1.7;max-width:58ch}
