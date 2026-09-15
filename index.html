@@ -43,7 +43,7 @@
   <main>
     <section class="hero">
       <h1>Why populations rise and fall together</h1>
-      <p class="lede">I study how dispersal, shared environments, and species interactions induce correlated population fluctuations across a landscape and the implications for the stability of whole regions.</p>
+      <p class="lede">I study how dispersal, shared environments, and species interactions induce correlated population fluctuations across a landscape and their implications for the stability of whole regions.</p>
 
       <figure class="model">
         <div class="readout">
@@ -61,17 +61,17 @@
         <div class="controls">
           <div class="ctrl">
             <label for="disp">Dispersal between patches</label>
-            <span class="hint">Individuals moving between populations</span>
+            <span class="hint">Individuals moving between patches</span>
             <input id="disp" type="range" min="0" max="0.5" step="0.01" value="0.02" aria-describedby="syncVal">
           </div>
           <div class="ctrl">
             <label for="moran">Shared environmental forcing</label>
-            <span class="hint">Weather experienced by every patch at once (<emph>i.e.</emph>, the Moran effect)</span>
+            <span class="hint">Weather experienced by all patches</span>
             <input id="moran" type="range" min="0" max="1" step="0.01" value="0.05" aria-describedby="syncVal">
           </div>
         </div>
       </figure>
-      <figcaption>Each line is a local population following the same noisy dynamics. Coupling through movement and common environmental conditions both induce regionally synchronized populations fluctuations that promote extinction risk</figcaption>
+      <figcaption>Each line is a local population following the same noisy dynamics. Coupling through movement or common environmental conditions induces regionally synchronized populations fluctuations that promote extinction risk</figcaption>
     </section>
 
     <section class="block">
