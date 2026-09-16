@@ -92,9 +92,9 @@ p:last-child{margin-bottom:0}
 main{padding:38px 0 110px}
 @media (min-width:960px){main{padding:60px 0 130px}}
 
-.measure{max-width:70ch}
+.measure{max-width:80ch}
 .pagetitle{font-size:clamp(2rem,4.4vw,2.9rem);line-height:1.05;letter-spacing:-.022em;margin-bottom:1rem}
-.standfirst{font-size:1.08rem;line-height:1.55;color:var(--muted);max-width:75ch;margin-bottom:2.8rem;font-weight:350}
+.standfirst{font-size:1.08rem;line-height:1.55;color:var(--muted);max-width:80ch;margin-bottom:2.8rem;font-weight:350}
 
 .block{padding:42px 0;border-top:1px solid var(--line)}
 .block:first-of-type{border-top:0;padding-top:0}
@@ -143,7 +143,7 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 .now .when{font-size:.79rem;color:var(--brass);font-weight:500}
 
 /* ---------- research ---------- */
-.topic{margin-bottom:2.6rem;max-width:70ch}
+.topic{margin-bottom:2.6rem;max-width:80ch}
 .topic:last-child{margin-bottom:0}
 .topic h3{font-size:1.32rem;margin-bottom:.55rem;color: var(--tide)}
 .topic .tag{font-size:.78rem;color:var(--muted);display:block;margin-top:.7rem;line-height:1.5}
@@ -153,7 +153,7 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 .qlist li::before{content:"";position:absolute;left:0;top:.75em;width:8px;height:1px;background:var(--verd)}
 
 /* ---------- publications ---------- */
-.pubs{list-style:none;margin:0;padding:0;max-width:70}
+.pubs{list-style:none;margin:0;padding:0;max-width:80}
 .pub{padding:15px 0;border-bottom:1px solid var(--line);font-size:.94rem;line-height:1.5}
 .pub:first-child{border-top:1px solid var(--line)}
 @media (min-width:620px){
@@ -170,7 +170,7 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 .pub .links a{color:var(--verd);border-bottom-color:rgba(127,203,180,.3);margin-right:.9rem}
 
 /* ---------- teaching ---------- */
-.course{padding:18px 0;border-bottom:1px solid var(--line);max-width:70ch}
+.course{padding:18px 0;border-bottom:1px solid var(--line);max-width:80ch}
 .course:first-of-type{border-top:1px solid var(--line)}
 /*.course h3{font-size:1.08rem;margin-bottom:.25rem} */
 .course h3 {font-size: 1.32rem;margin-bottom: .55rem;color: var(--tide)}
@@ -179,7 +179,7 @@ figcaption{margin-top:14px;font-size:.9rem;line-height:1.55;color:var(--muted);m
 .course .term{font-size:.78rem;color:var(--muted);display:block;margin-top:.4rem}
 
 /* ---------- generic panel ---------- */
-.panel{background:var(--surface);border:1px solid var(--line);padding:24px;max-width:70ch}
+.panel{background:var(--surface);border:1px solid var(--line);padding:24px;max-width:80ch}
 .panel h3{font-size:.84rem;font-weight:600;font-stretch:100%;color:var(--brass);margin-bottom:.7rem}
 
 /* ---------- contact ---------- */
