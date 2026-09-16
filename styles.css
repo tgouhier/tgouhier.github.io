@@ -71,9 +71,9 @@ p:last-child{margin-bottom:0}
 }
 .brand:hover .brandname{color:var(--tide)}
 
-.role{font-size:.81rem;color:var(--muted);line-height:1.55;margin:0 0 1.5rem;font-weight:400}
+.role{font-size:.95rem;color:var(--muted);line-height:1.55;margin:0 0 1.5rem;font-weight:400}
 
-.railnav{font-size:.87rem;display:flex;flex-wrap:wrap;gap:.5rem 1.15rem;margin-bottom:1.2rem}
+.railnav{font-size:.95rem;display:flex;flex-wrap:wrap;gap:.5rem 1.15rem;margin-bottom:1.2rem}
 .railnav a{border:0;color:var(--muted);font-weight:400}
 .railnav a:hover{color:var(--text)}
 .railnav a[aria-current="page"]{color:var(--brass);font-weight:500}
