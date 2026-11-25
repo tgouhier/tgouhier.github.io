@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TI-84 emulator</title>
+<style>
+:root{--ink:#1b2430;--lcd:#b3c2a5;--lcdink:#0b1208;--kh:42px;color-scheme:light dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:#dde1e7;color:var(--ink);font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%;min-height:100vh}
+.stage{display:flex;flex-wrap:wrap;gap:36px;justify-content:center;align-items:flex-start;padding:calc(20px + env(safe-area-inset-top)) 14px calc(36px + env(safe-area-inset-bottom))}
+.calc{width:100%;max-width:390px;background:linear-gradient(180deg,#3b3f47,#272a30);border-radius:26px 26px 46px 46px;padding:16px 15px 24px;box-shadow:0 20px 44px rgba(18,26,40,.38),inset 0 1px 0 rgba(255,255,255,.09);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.brand{display:flex;justify-content:space-between;align-items:baseline;color:#b4bac5;font-size:12px;margin:0 4px 10px;letter-spacing:.02em}
+.brand b{font-weight:700;color:#e6e9ee;font-size:14px}
+.bezel{background:#13151a;border-radius:11px;padding:10px;box-shadow:inset 0 2px 7px rgba(0,0,0,.7)}
+.lcd{background:var(--lcd);border-radius:3px;padding:3px 6px 5px;box-shadow:inset 0 0 16px rgba(40,60,30,.4)}
+.lcd.off{background:#3a3f38;box-shadow:none}
+.status{display:flex;justify-content:space-between;height:14px;font:700 9px/14px Menlo,"SF Mono",monospace;color:var(--lcdink)}
+.status b{background:var(--lcdink);color:var(--lcd);padding:0 3px;margin-right:3px;border-radius:2px}
+.status i{font-style:normal;margin-right:5px}
+.screen canvas{display:block;margin:0 auto}
+.screen{touch-action:none;overflow:hidden;color:var(--lcdink);font-family:"SF Mono",Menlo,Consolas,"Liberation Mono","Courier New",monospace;font-weight:700;white-space:pre;cursor:default;width:100%}
+.screen.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.screen.scroll::-webkit-scrollbar{display:none}
+.r{height:var(--rh);line-height:var(--rh);white-space:pre}
+.r[data-edit]{border-top:1px solid var(--lcdink)}
+.r span{display:inline-block;height:var(--rh);vertical-align:top}
+.inv{background:var(--lcdink);color:var(--lcd)}
+.cur{animation:blink 1.1s steps(1) infinite}
+@keyframes blink{0%,49%{background:var(--lcdink);color:var(--lcd)}50%,100%{background:transparent;color:inherit}}
+.neg{transform:scaleX(.7) translateY(-.14em)}
+.lcd.off .screen{visibility:hidden}
+.keys{display:grid;grid-template-columns:repeat(5,1fr);column-gap:9px;row-gap:3px;margin-top:16px}
+.kc{display:flex;flex-direction:column;min-width:0}
+.lg{height:13px;display:flex;justify-content:space-between;font-size:10px;line-height:13px;padding:0 2px;white-space:nowrap;font-weight:600}
+.l2{color:#6fb9f3}.la{color:#82d86c}
+.key{height:var(--kh);border:0;border-radius:9px;font:600 13px/1 "Avenir Next","Segoe UI",system-ui,sans-serif;cursor:pointer;color:#17191d;background:#ececea;box-shadow:0 2px 0 #8d9097,0 4px 6px rgba(0,0,0,.35);touch-action:manipulation;padding:0;width:100%;white-space:nowrap}
+.key:active,.key.lit{transform:translateY(2px);box-shadow:0 0 0 #8d9097,0 1px 3px rgba(0,0,0,.4)}
+.k-num{background:#f4f3f0;font-size:16px}
+.k-op{background:#cdd1d8;font-size:15px}
+.k-fn{background:#4a4e57;color:#eef0f3;box-shadow:0 2px 0 #1b1d22,0 4px 6px rgba(0,0,0,.4);font-size:11.5px}
+.k-2nd{background:#4ba7ea;color:#fff;box-shadow:0 2px 0 #276da3,0 4px 6px rgba(0,0,0,.4)}
+.k-alpha{background:#6dc25b;color:#0f2409;box-shadow:0 2px 0 #3f8a30,0 4px 6px rgba(0,0,0,.4);font-size:11.5px}
+.key.lit{outline:2px solid #fff3}
+.k-fn:focus-visible,.key:focus-visible,.dp:focus-visible{outline:2px solid #ffd54a;outline-offset:2px}
+.dpad{position:relative;margin-top:13px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#555a64,#2f3238);box-shadow:0 2px 0 #15171b,0 4px 8px rgba(0,0,0,.45);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);align-self:stretch;aspect-ratio:auto;min-height:0}
+.dp{background:transparent;border:0;color:#e8eaee;font-size:13px;cursor:pointer;touch-action:manipulation;padding:0}
+.dp:active{color:#ffd54a}
+.dp.up{grid-area:1/2}.dp.left{grid-area:2/1}.dp.right{grid-area:2/3}.dp.down{grid-area:3/2}
+.ref{width:100%;max-width:430px;font-size:14.5px;line-height:1.5}
+.ref h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+.ref p{margin:0 0 14px;color:#3b4656}
+.ref h2{font-size:14px;margin:18px 0 6px;color:#1b2430}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 12.5px/1.2 Menlo,"SF Mono","Courier New",monospace;background:#f3f5f8;border:1px solid #b9c1ce;border-radius:7px;padding:6px 8px;cursor:pointer;color:#1b2430;text-align:left}
+.chip:hover{background:#fff;border-color:#6b7a90}
+.syn{width:100%;border-collapse:collapse;font:12.5px/1.45 Menlo,"SF Mono","Courier New",monospace}
+.syn td{padding:3px 0;border-bottom:1px solid #c8ced8;vertical-align:top}
+.syn td:first-child{color:#1b2430;font-weight:700;padding-right:10px;white-space:nowrap}
+.note{font-size:13px;color:#4b586a;margin-top:16px}
+kbd{font:600 12px Menlo,monospace;background:#f3f5f8;border:1px solid #b9c1ce;border-radius:4px;padding:0 4px}
+@media (max-width:420px){:root{--kh:38px}.key{font-size:12px}.k-num{font-size:15px}.k-fn,.k-alpha{font-size:10.5px}.keys{column-gap:7px}.calc{padding:14px 11px 22px}}
+@media (prefers-color-scheme:dark){body{background:#12151b;color:#dfe4ec}.ref h2{color:#e6eaf1}.ref p,.note{color:#9aa6b8}.chip{background:#1d222b;border-color:#3a4352;color:#e6eaf1}.chip:hover{background:#262d39}.syn td{border-color:#2c3440}.syn td:first-child{color:#e6eaf1}kbd{background:#1d222b;border-color:#3a4352}}
+@media (prefers-reduced-motion:reduce){.cur{animation:none;background:var(--lcdink);color:var(--lcd)}}
+</style>
+</head>
+<body>
+<main class="stage">
+<section class="calc" id="calc" aria-label="Calculator">
+  <div class="brand"><b>TI-84</b><!-- <span>unofficial</span>!--></div>
+  <div class="bezel"><div class="lcd" id="lcd"><div class="status"><span id="st-l"></span><span id="st-r"></span></div><div class="screen" id="screen"><canvas id="cv" role="img" aria-label="Calculator screen"></canvas></div></div></div>
+  <div class="keys" id="keys"></div>
+</section>
+
+</main>
+<script>
+(function (G) {
+'use strict';
+
+var XBAR = 'x\u0304', YBAR = 'y\u0304', PHAT = 'p\u0302', THETA = '\u03b8';
+function TIErr(code) { var e = new Error(code); e.ti = true; e.code = code; return e; }
+
+/* ---------- state ---------- */
+var S = { fmt: 'Normal', dec: null, angle: 'Radian' };
+var LISTNAMES = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'];
+var LISTSET = {}; LISTNAMES.forEach(function (k) { LISTSET[k] = 1; });
+var ST = { lists: {}, vars: {}, ans: 0, sv: {} };
+LISTNAMES.forEach(function (k) { ST.lists[k] = []; });
+('ABCDEFGHIJKLMNOPQRSTUVWXYZ' + THETA).split('').forEach(function (k) { ST.vars[k] = 0; });
+var SVNAMES = [XBAR, 'Sx', '\u03c3x', 'n', 'minX', 'Q1', 'Med', 'Q3', 'maxX', '\u03a3x', '\u03a3x\u00b2',
+  YBAR, 'Sy', '\u03c3y', '\u03a3y', '\u03a3y\u00b2', '\u03a3xy', 'minY', 'maxY', 'a', 'b', 'r', 'r\u00b2',
+  'p', 'z', 't', '\u03c7\u00b2', 'df', PHAT, PHAT + '1', PHAT + '2', XBAR + '1', XBAR + '2', 'Sx1', 'Sx2', 'Sxp',
+  'n1', 'n2', 'lower', 'upper', 'F', 's'];
+var SVSET = {}; SVNAMES.forEach(function (k) { SVSET[k] = 1; });
+function setSV(o) { for (var k in o) { if (o.hasOwnProperty(k)) ST.sv[k] = o[k]; } }
+
+/* ---------- number helpers ---------- */
+function r14(x) { if (!isFinite(x) || x === 0) return x; return parseFloat(x.toPrecision(14)); }
+function chk(x) { if (isNaN(x)) throw TIErr('DOMAIN'); if (!isFinite(x) || Math.abs(x) >= 1e100) throw TIErr('OVERFLOW'); return x; }
+function num(v) { if (typeof v !== 'number') throw TIErr('DATA TYPE'); return v; }
+function mapL(v, f) { if (Array.isArray(v)) return v.map(function (x) { return f(num(x)); }); return f(num(v)); }
+function dpar(c) { if (!c) throw TIErr('DOMAIN'); }
+
+function sciStr(x, d) {
+  var s = x.toExponential(d === null ? 9 : d), i = s.indexOf('e'), m = s.slice(0, i), e = parseInt(s.slice(i + 1), 10);
+  if (d === null && m.indexOf('.') >= 0) m = m.replace(/0+$/, '').replace(/\.$/, '');
+  return m + 'E' + e;
+}
+function engStr(x, d) {
+  var s = x.toExponential(9), i = s.indexOf('e'), e = parseInt(s.slice(i + 1), 10), m = parseFloat(s.slice(0, i));
+  var ee = Math.floor(e / 3) * 3; m = m * Math.pow(10, e - ee);
+  var ms = d === null ? String(parseFloat(m.toPrecision(10))) : m.toFixed(d);
+  return ms + 'E' + ee;
+}
+function fmt(x) {
+  if (typeof x !== 'number') return String(x);
+  if (isNaN(x)) return 'undef';
+  if (!isFinite(x)) return x > 0 ? '\u221e' : '-\u221e';
+  if (x === 0) return '0';
+  var a = Math.abs(x), d = S.dec;
+  if (S.fmt === 'Sci') return sciStr(x, d);
+  if (S.fmt === 'Eng') return engStr(x, d);
+  if (d !== null) {
+    if (a >= 1e10) return sciStr(x, d);
+    var s = x.toFixed(d); if (parseFloat(s) === 0) s = (0).toFixed(d); return s;
+  }
+  if (a >= 1e10 || a < 1e-3) return sciStr(x, null);
+  return String(parseFloat(x.toPrecision(10)));
+}
+function fmtValue(v) {
+  if (Array.isArray(v)) return '{' + v.map(fmt).join(' ') + '}';
+  return fmt(v);
+}
+
+/* ---------- special functions ---------- */
+var LG_C = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+function lgamma(x) {
+  if (x < 0.5) return Math.log(Math.PI / Math.abs(Math.sin(Math.PI * x))) - lgamma(1 - x);
+  x -= 1; var a = LG_C[0], t = x + 7.5;
+  for (var i = 1; i < 9; i++) a += LG_C[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+function gser(a, x) {
+  var ap = a, sum = 1 / a, del = sum;
+  for (var n = 0; n < 100000; n++) { ap++; del *= x / ap; sum += del; if (Math.abs(del) < Math.abs(sum) * 1e-16) break; }
+  return sum * Math.exp(-x + a * Math.log(x) - lgamma(a));
+}
+function gcf(a, x) {
+  var FP = 1e-300, b = x + 1 - a, c = 1 / FP, d = 1 / b, h = d;
+  for (var i = 1; i <= 100000; i++) {
+    var an = -i * (i - a); b += 2; d = an * d + b; if (Math.abs(d) < FP) d = FP;
+    c = b + an / c; if (Math.abs(c) < FP) c = FP; d = 1 / d; var del = d * c; h *= del;
+    if (Math.abs(del - 1) < 1e-16) break;
+  }
+  return Math.exp(-x + a * Math.log(x) - lgamma(a)) * h;
+}
+function gammaP(a, x) { if (x <= 0) return 0; return x < a + 1 ? gser(a, x) : 1 - gcf(a, x); }
+function gammaQ(a, x) { if (x <= 0) return 1; return x < a + 1 ? 1 - gser(a, x) : gcf(a, x); }
+
+function betacf(a, b, x) {
+  var FP = 1e-300, qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < FP) d = FP; d = 1 / d; var h = d;
+  for (var m = 1; m <= 20000; m++) {
+    var m2 = 2 * m, aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FP) d = FP; c = 1 + aa / c; if (Math.abs(c) < FP) c = FP; d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FP) d = FP; c = 1 + aa / c; if (Math.abs(c) < FP) c = FP; d = 1 / d;
+    var del = d * c; h *= del; if (Math.abs(del - 1) < 3e-16) break;
+  }
+  return h;
+}
+function betaI(x, a, b) {
+  if (x <= 0) return 0; if (x >= 1) return 1;
+  var bt = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b) + a * Math.log(x) + b * Math.log1p(-x));
+  if (x < (a + 1) / (a + b + 2)) return bt * betacf(a, b, x) / a;
+  return 1 - bt * betacf(b, a, 1 - x) / b;
+}
+
+/* normal */
+function normCdf(z) {
+  if (z === Infinity) return 1; if (z === -Infinity) return 0;
+  var q = 0.5 * gammaQ(0.5, z * z / 2);
+  return z < 0 ? q : 1 - q;
+}
+function normProb(lo, hi) { if (lo > 0) return normCdf(-lo) - normCdf(-hi); return normCdf(hi) - normCdf(lo); }
+function invNormStd(p) {
+  dpar(p > 0 && p < 1);
+  if (p > 0.5) return -invNormStd(1 - p);
+  var a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+  var b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+  var c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+  var d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+  var x, q, r;
+  if (p < 0.02425) {
+    q = Math.sqrt(-2 * Math.log(p));
+    x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  } else {
+    q = p - 0.5; r = q * q;
+    x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  for (var i = 0; i < 2; i++) {
+    var e = normCdf(x) - p, u = e * Math.sqrt(2 * Math.PI) * Math.exp(x * x / 2);
+    x = x - u / (1 + x * u / 2);
+  }
+  return x;
+}
+
+/* t */
+function tTail2(t, df) { return betaI(df / (df + t * t), df / 2, 0.5); }
+function tCdf(x, df) {
+  if (x === Infinity) return 1; if (x === -Infinity) return 0;
+  var tl = tTail2(Math.abs(x), df) / 2; return x < 0 ? tl : 1 - tl;
+}
+function tProb(lo, hi, df) { if (lo > 0) return tCdf(-lo, df) - tCdf(-hi, df); return tCdf(hi, df) - tCdf(lo, df); }
+function tPdf(x, df) { return Math.exp(lgamma((df + 1) / 2) - lgamma(df / 2)) / Math.sqrt(df * Math.PI) * Math.pow(1 + x * x / df, -(df + 1) / 2); }
+function invT(p, df) {
+  dpar(p > 0 && p < 1 && df > 0);
+  if (p === 0.5) return 0;
+  var q = p < 0.5 ? p : 1 - p, lo = 0, hi = 1;
+  while (tTail2(hi, df) > 2 * q) { hi *= 2; if (hi > 1e300) break; }
+  for (var i = 0; i < 400; i++) {
+    var mid = (lo + hi) / 2; if (tTail2(mid, df) > 2 * q) lo = mid; else hi = mid;
+    if (hi - lo <= 1e-16 * hi) break;
+  }
+  var t = (lo + hi) / 2; return p < 0.5 ? -t : t;
+}
+function pFromT(t, df, alt) { return alt === 0 ? tTail2(Math.abs(t), df) : alt === 1 ? tCdf(t, df) : tCdf(-t, df); }
+function pFromZ(z, alt) { return alt === 0 ? 2 * normCdf(-Math.abs(z)) : alt === 1 ? normCdf(z) : normCdf(-z); }
+
+/* chi-square & F */
+function chi2Cdf(x, df) { return gammaP(df / 2, x / 2); }
+function chi2Sf(x, df) { return gammaQ(df / 2, x / 2); }
+function chi2Pdf(x, df) {
+  if (x < 0) return 0; if (x === 0) return df === 2 ? 0.5 : (df < 2 ? Infinity : 0);
+  return Math.exp((df / 2 - 1) * Math.log(x) - x / 2 - (df / 2) * Math.LN2 - lgamma(df / 2));
+}
+function fCdf(x, d1, d2) { if (x <= 0) return 0; return betaI(d1 * x / (d1 * x + d2), d1 / 2, d2 / 2); }
+function fSf(x, d1, d2) { if (x <= 0) return 1; return betaI(d2 / (d2 + d1 * x), d2 / 2, d1 / 2); }
+function fPdf(x, d1, d2) {
+  if (x < 0) return 0; if (x === 0) return d1 === 2 ? 1 : (d1 < 2 ? Infinity : 0);
+  var lb = lgamma(d1 / 2) + lgamma(d2 / 2) - lgamma((d1 + d2) / 2);
+  return Math.exp(0.5 * (d1 * Math.log(d1 * x) + d2 * Math.log(d2) - (d1 + d2) * Math.log(d1 * x + d2)) - Math.log(x) - lb);
+}
+
+/* discrete */
+function choose(n, k) { if (k < 0 || k > n) return 0; k = Math.min(k, n - k); var r = 1; for (var i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; }
+function binomPmf(n, p, k) {
+  if (k < 0 || k > n) return 0;
+  if (p === 0) return k === 0 ? 1 : 0; if (p === 1) return k === n ? 1 : 0;
+  if (n <= 100) return choose(n, k) * Math.pow(p, k) * Math.pow(1 - p, n - k);
+  var lc = lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1);
+  return Math.exp(lc + k * Math.log(p) + (n - k) * Math.log1p(-p));
+}
+function binomCdf(n, p, k) {
+  if (k < 0) return 0; if (k >= n) return 1; if (p === 0) return 1; if (p === 1) return 0;
+  if (n <= 3000) { var s = 0; for (var i = 0; i <= k; i++) s += binomPmf(n, p, i); return Math.min(1, s); }
+  return betaI(1 - p, n - k, k + 1);
+}
+function poisPmf(l, x) {
+  if (x < 0) return 0; if (l === 0) return x === 0 ? 1 : 0;
+  if (x <= 25 && l <= 100) { var f = 1; for (var i = 2; i <= x; i++) f *= i; return Math.exp(-l) * Math.pow(l, x) / f; }
+  return Math.exp(-l + x * Math.log(l) - lgamma(x + 1));
+}
+function poisCdf(l, x) { if (x < 0) return 0; if (l === 0) return 1; return gammaQ(x + 1, l); }
+function geoPmf(p, k) { if (k < 1) return 0; return p * Math.pow(1 - p, k - 1); }
+function geoCdf(p, k) { if (k < 1) return 0; return -Math.expm1(k * Math.log1p(-p)); }
+
+function factorial(x) {
+  if (x < 0 || x > 69) throw TIErr('DOMAIN');
+  if (x === Math.floor(x)) { var r = 1; for (var i = 2; i <= x; i++) r *= i; return r; }
+  return Math.exp(lgamma(x + 1));
+}
+function permChk(n, r) { if (n < 0 || r < 0 || r > n || n !== Math.floor(n) || r !== Math.floor(r)) throw TIErr('DOMAIN'); }
+function nPr(n, r) { permChk(n, r); var res = 1; for (var i = 0; i < r; i++) res *= (n - i); return res; }
+function nCr(n, r) { permChk(n, r); return Math.round(choose(n, r)) === choose(n, r) || choose(n, r) > 9e15 ? choose(n, r) : Math.round(choose(n, r)); }
+
+/* angles */
+function toRad(x) { return S.angle === 'Degree' ? x * Math.PI / 180 : x; }
+function fromRad(x) { return S.angle === 'Degree' ? x * 180 / Math.PI : x; }
+function nearInt(m) { return Math.abs(m - Math.round(m)) < 1e-13 * Math.max(1, Math.abs(m)); }
+function sinF(x) { var m = S.angle === 'Degree' ? x / 180 : x / Math.PI; if (nearInt(m)) return 0; return Math.sin(toRad(x)); }
+function cosF(x) { var m = S.angle === 'Degree' ? x / 90 : x / (Math.PI / 2); if (nearInt(m) && Math.round(m) % 2 !== 0) return 0; return Math.cos(toRad(x)); }
+function tanF(x) { var c = cosF(x); if (c === 0) throw TIErr('DOMAIN'); var s = sinF(x); if (s === 0) return 0; return Math.tan(toRad(x)); }
+
+/* ---------- stats helpers ---------- */
+function median(sorted) { var n = sorted.length; if (!n) throw TIErr('STAT'); return n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2; }
+function expandFreq(x, f) {
+  if (!f) return x.slice();
+  var out = [];
+  for (var i = 0; i < x.length; i++) { var c = Math.round(f[i]); for (var k = 0; k < c; k++) out.push(x[i]); if (out.length > 2e6) throw TIErr('MEMORY'); }
+  return out;
+}
+function checkFreq(x, f) {
+  if (!x.length) throw TIErr('INVALID DIM');
+  if (f) { if (f.length !== x.length) throw TIErr('DIM MISMATCH'); for (var i = 0; i < f.length; i++) if (!(f[i] >= 0)) throw TIErr('DOMAIN'); }
+}
+function sumstats(x, f) {
+  checkFreq(x, f);
+  var n = 0, s = 0, i, w;
+  for (i = 0; i < x.length; i++) { w = f ? f[i] : 1; n += w; s += w * x[i]; }
+  if (n <= 0) throw TIErr('STAT');
+  var mean = s / n, ss = 0, sq = 0;
+  for (i = 0; i < x.length; i++) { w = f ? f[i] : 1; ss += w * (x[i] - mean) * (x[i] - mean); sq += w * x[i] * x[i]; }
+  return { n: n, sum: s, sumsq: sq, mean: mean, ss: ss, sd: n > 1 ? Math.sqrt(ss / (n - 1)) : NaN, sigma: Math.sqrt(ss / n) };
+}
+function regress(x, y, w) {
+  if (x.length !== y.length) throw TIErr('DIM MISMATCH');
+  if (w && w.length !== x.length) throw TIErr('DIM MISMATCH');
+  var n = 0, sx = 0, sy = 0, i, wi;
+  for (i = 0; i < x.length; i++) { wi = w ? w[i] : 1; n += wi; sx += wi * x[i]; sy += wi * y[i]; }
+  if (n < 2) throw TIErr('STAT');
+  var mx = sx / n, my = sy / n, Sxx = 0, Syy = 0, Sxy = 0;
+  for (i = 0; i < x.length; i++) { wi = w ? w[i] : 1; Sxx += wi * (x[i] - mx) * (x[i] - mx); Syy += wi * (y[i] - my) * (y[i] - my); Sxy += wi * (x[i] - mx) * (y[i] - my); }
+  if (Sxx === 0) throw TIErr('DOMAIN');
+  var b = Sxy / Sxx, a = my - b * mx, r = Syy === 0 ? 0 : Sxy / Math.sqrt(Sxx * Syy);
+  return { n: n, mx: mx, my: my, Sxx: Sxx, Syy: Syy, Sxy: Sxy, slope: b, icpt: a, r: r };
+}
+function kv(name, val) { return name + '=' + fmt(val); }
+
+function oneVarLines(x, f) {
+  var d = sumstats(x, f), sorted = expandFreq(x, f).sort(function (a, b) { return a - b; });
+  var med = median(sorted), half = Math.floor(sorted.length / 2);
+  var q1 = half ? median(sorted.slice(0, half)) : sorted[0], q3 = half ? median(sorted.slice(sorted.length - half)) : sorted[0];
+  var o = {}; o[XBAR] = d.mean; o['\u03a3x'] = d.sum; o['\u03a3x\u00b2'] = d.sumsq; o.Sx = d.sd; o['\u03c3x'] = d.sigma; o.n = d.n;
+  o.minX = sorted[0]; o.Q1 = q1; o.Med = med; o.Q3 = q3; o.maxX = sorted[sorted.length - 1];
+  setSV(o);
+  var lines = ['1-Var Stats'];
+  ['x\u0304', '\u03a3x', '\u03a3x\u00b2', 'Sx', '\u03c3x', 'n', 'minX', 'Q1', 'Med', 'Q3', 'maxX'].forEach(function (k) { lines.push(kv(k, o[k])); });
+  return lines;
+}
+function twoVarLines(x, y, f) {
+  if (x.length !== y.length) throw TIErr('DIM MISMATCH');
+  var a = sumstats(x, f), b = sumstats(y, f), sxy = 0, i;
+  for (i = 0; i < x.length; i++) sxy += (f ? f[i] : 1) * x[i] * y[i];
+  var o = {}; o[XBAR] = a.mean; o['\u03a3x'] = a.sum; o['\u03a3x\u00b2'] = a.sumsq; o.Sx = a.sd; o['\u03c3x'] = a.sigma; o.n = a.n;
+  o[YBAR] = b.mean; o['\u03a3y'] = b.sum; o['\u03a3y\u00b2'] = b.sumsq; o.Sy = b.sd; o['\u03c3y'] = b.sigma; o['\u03a3xy'] = sxy;
+  o.minX = Math.min.apply(null, x); o.maxX = Math.max.apply(null, x); o.minY = Math.min.apply(null, y); o.maxY = Math.max.apply(null, y);
+  setSV(o);
+  var lines = ['2-Var Stats'];
+  ['x\u0304', '\u03a3x', '\u03a3x\u00b2', 'Sx', '\u03c3x', 'n', 'y\u0304', '\u03a3y', '\u03a3y\u00b2', 'Sy', '\u03c3y', '\u03a3xy', 'minX', 'maxX', 'minY', 'maxY'].forEach(function (k) { lines.push(kv(k, o[k])); });
+  return lines;
+}
+function linRegLines(x, y, w, form) {
+  var g = regress(x, y, w);
+  setSV({ a: form === 1 ? g.slope : g.icpt, b: form === 1 ? g.icpt : g.slope, r: g.r, 'r\u00b2': g.r * g.r });
+  if (form === 1) return ['LinReg', 'y=ax+b', kv('a', g.slope), kv('b', g.icpt), kv('r\u00b2', g.r * g.r), kv('r', g.r)];
+  return ['LinReg', 'y=a+bx', kv('a', g.icpt), kv('b', g.slope), kv('r\u00b2', g.r * g.r), kv('r', g.r)];
+}
+function anovaLines(groups) {
+  if (groups.length < 2) throw TIErr('ARGUMENT');
+  var N = 0, tot = 0, k = groups.length, st = groups.map(function (g) { if (!g.length) throw TIErr('INVALID DIM'); var s = sumstats(g, null); N += s.n; tot += s.sum; return s; });
+  var M = tot / N, ssb = 0, ssw = 0;
+  st.forEach(function (s) { ssb += s.n * (s.mean - M) * (s.mean - M); ssw += s.ss; });
+  var df1 = k - 1, df2 = N - k; if (df2 <= 0) throw TIErr('STAT');
+  var msb = ssb / df1, msw = ssw / df2, F = msb / msw, p = fSf(F, df1, df2);
+  setSV({ F: F, p: p, df: df1 });
+  return ['One-way ANOVA', kv('F', F), kv('p', p), 'Factor', ' ' + kv('df', df1), ' ' + kv('SS', ssb), ' ' + kv('MS', msb), 'Error', ' ' + kv('df', df2), ' ' + kv('SS', ssw), ' ' + kv('MS', msw), kv('Sxp', Math.sqrt(msw))];
+}
+
+/* ---------- functions table ---------- */
+var FN = {}, LAZY = {};
+function def(name, min, max, f) { FN[name] = { n: [min, max], f: f }; }
+function u1(f) { return function (a) { return mapL(a[0], f); }; }
+function intArg(x) { dpar(x === Math.floor(x)); return x; }
+
+def('sin(', 1, 1, u1(sinF)); def('cos(', 1, 1, u1(cosF)); def('tan(', 1, 1, u1(tanF));
+def('sin\u207b\u00b9(', 1, 1, u1(function (x) { dpar(Math.abs(x) <= 1); return fromRad(Math.asin(x)); }));
+def('cos\u207b\u00b9(', 1, 1, u1(function (x) { dpar(Math.abs(x) <= 1); return fromRad(Math.acos(x)); }));
+def('tan\u207b\u00b9(', 1, 1, u1(function (x) { return fromRad(Math.atan(x)); }));
+def('ln(', 1, 1, u1(function (x) { dpar(x > 0); return Math.log(x); }));
+def('log(', 1, 1, u1(function (x) { dpar(x > 0); return Math.log10(x); }));
+def('e^(', 1, 1, u1(function (x) { return Math.exp(x); }));
+def('10^(', 1, 1, u1(function (x) { return Math.pow(10, x); }));
+def('\u221a(', 1, 1, u1(function (x) { if (x < 0) throw TIErr('NONREAL ANS'); return Math.sqrt(x); }));
+def('\u00b3\u221a(', 1, 1, u1(function (x) { return Math.cbrt(x); }));
+def('abs(', 1, 1, u1(Math.abs));
+def('iPart(', 1, 1, u1(Math.trunc));
+def('fPart(', 1, 1, u1(function (x) { return x - Math.trunc(x); }));
+def('int(', 1, 1, u1(Math.floor));
+def('round(', 1, 2, function (a) {
+  var d = a.length > 1 ? num(a[1]) : 0, m = Math.pow(10, d);
+  return mapL(a[0], function (x) { return (x < 0 ? -1 : 1) * Math.round(Math.abs(x) * m + 1e-9) / m; });
+});
+def('not(', 1, 1, u1(function (x) { return x === 0 ? 1 : 0; }));
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = b; b = a % b; a = t; } return a; }
+def('gcd(', 2, 2, function (a) { return gcd(intArg(num(a[0])), intArg(num(a[1]))); });
+def('lcm(', 2, 2, function (a) { var x = intArg(num(a[0])), y = intArg(num(a[1])); return x === 0 || y === 0 ? 0 : Math.abs(x * y) / gcd(x, y); });
+
+function listOf(v) { if (!Array.isArray(v)) throw TIErr('DATA TYPE'); return v; }
+def('min(', 1, 2, function (a) {
+  if (a.length === 1) { var l = listOf(a[0]); if (!l.length) throw TIErr('INVALID DIM'); return Math.min.apply(null, l); }
+  return zip2(a[0], a[1], Math.min);
+});
+def('max(', 1, 2, function (a) {
+  if (a.length === 1) { var l = listOf(a[0]); if (!l.length) throw TIErr('INVALID DIM'); return Math.max.apply(null, l); }
+  return zip2(a[0], a[1], Math.max);
+});
+function zip2(x, y, f) {
+  if (Array.isArray(x) && Array.isArray(y)) { if (x.length !== y.length) throw TIErr('DIM MISMATCH'); return x.map(function (v, i) { return f(v, y[i]); }); }
+  if (Array.isArray(x)) return x.map(function (v) { return f(v, num(y)); });
+  if (Array.isArray(y)) return y.map(function (v) { return f(num(x), v); });
+  return f(num(x), num(y));
+}
+def('mean(', 1, 2, function (a) { return sumstats(listOf(a[0]), a[1] ? listOf(a[1]) : null).mean; });
+def('median(', 1, 2, function (a) { var x = listOf(a[0]); checkFreq(x, a[1] ? listOf(a[1]) : null); return median(expandFreq(x, a[1] || null).sort(function (p, q) { return p - q; })); });
+def('stdDev(', 1, 2, function (a) { var s = sumstats(listOf(a[0]), a[1] ? listOf(a[1]) : null); if (s.n < 2) throw TIErr('STAT'); return s.sd; });
+def('variance(', 1, 2, function (a) { var s = sumstats(listOf(a[0]), a[1] ? listOf(a[1]) : null); if (s.n < 2) throw TIErr('STAT'); return s.ss / (s.n - 1); });
+function range3(a, l) {
+  var s = a.length > 1 ? num(a[1]) : 1, e = a.length > 2 ? num(a[2]) : l.length;
+  if (s < 1 || e > l.length || s > e) throw TIErr('DOMAIN');
+  return l.slice(s - 1, e);
+}
+def('sum(', 1, 3, function (a) { var l = range3(a, listOf(a[0])), t = 0; l.forEach(function (x) { t += x; }); return t; });
+def('prod(', 1, 3, function (a) { var l = range3(a, listOf(a[0])), t = 1; l.forEach(function (x) { t *= x; }); return t; });
+def('dim(', 1, 1, function (a) { return listOf(a[0]).length; });
+def('cumSum(', 1, 1, function (a) { var t = 0; return listOf(a[0]).map(function (x) { t += x; return t; }); });
+def('\u0394List(', 1, 1, function (a) { var l = listOf(a[0]), o = []; for (var i = 1; i < l.length; i++) o.push(l[i] - l[i - 1]); return o; });
+def('augment(', 2, 2, function (a) { return listOf(a[0]).concat(listOf(a[1])); });
+def('randInt(', 2, 3, function (a) {
+  var lo = intArg(num(a[0])), hi = intArg(num(a[1])), n = a.length > 2 ? intArg(num(a[2])) : null; dpar(lo <= hi);
+  function one() { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  if (n === null) return one(); dpar(n >= 1 && n <= 999); var o = []; for (var i = 0; i < n; i++) o.push(one()); return o;
+});
+function gaussRand() { var u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+def('randNorm(', 2, 3, function (a) {
+  var m = num(a[0]), s = num(a[1]), n = a.length > 2 ? intArg(num(a[2])) : null; dpar(s >= 0);
+  if (n === null) return m + s * gaussRand(); dpar(n >= 1 && n <= 999); var o = []; for (var i = 0; i < n; i++) o.push(m + s * gaussRand()); return o;
+});
+def('randBin(', 2, 3, function (a) {
+  var n = intArg(num(a[0])), p = num(a[1]), sims = a.length > 2 ? intArg(num(a[2])) : 1; dpar(n >= 1 && p >= 0 && p <= 1 && sims >= 1 && sims <= 999);
+  var o = []; for (var j = 0; j < sims; j++) { var c = 0; for (var i = 0; i < n; i++) if (Math.random() < p) c++; o.push(c); }
+  return sims === 1 && a.length < 3 ? o[0] : o;
+});
+
+/* distributions */
+def('normalpdf(', 1, 3, function (a) {
+  var m = a.length > 1 ? num(a[1]) : 0, s = a.length > 2 ? num(a[2]) : 1; dpar(s > 0);
+  return mapL(a[0], function (x) { var z = (x - m) / s; return Math.exp(-z * z / 2) / (s * Math.sqrt(2 * Math.PI)); });
+});
+def('normalcdf(', 2, 4, function (a) {
+  var lo = num(a[0]), hi = num(a[1]), m = a.length > 2 ? num(a[2]) : 0, s = a.length > 3 ? num(a[3]) : 1; dpar(s > 0 && lo <= hi);
+  return normProb((lo - m) / s, (hi - m) / s);
+});
+def('invNorm(', 1, 3, function (a) {
+  var m = a.length > 1 ? num(a[1]) : 0, s = a.length > 2 ? num(a[2]) : 1; dpar(s > 0);
+  return mapL(a[0], function (p) { return m + s * invNormStd(p); });
+});
+def('invT(', 2, 2, function (a) { var df = num(a[1]); dpar(df > 0); return mapL(a[0], function (p) { return invT(p, df); }); });
+def('tpdf(', 2, 2, function (a) { var df = num(a[1]); dpar(df > 0); return mapL(a[0], function (x) { return tPdf(x, df); }); });
+def('tcdf(', 3, 3, function (a) { var lo = num(a[0]), hi = num(a[1]), df = num(a[2]); dpar(df > 0 && lo <= hi); return tProb(lo, hi, df); });
+def('\u03c7\u00b2pdf(', 2, 2, function (a) { var df = num(a[1]); dpar(df > 0); return mapL(a[0], function (x) { return chi2Pdf(x, df); }); });
+def('\u03c7\u00b2cdf(', 3, 3, function (a) { var lo = num(a[0]), hi = num(a[1]), df = num(a[2]); dpar(df > 0 && lo <= hi); return chi2Cdf(hi, df) - chi2Cdf(Math.max(lo, 0), df); });
+def('Fpdf(', 3, 3, function (a) { var d1 = num(a[1]), d2 = num(a[2]); dpar(d1 > 0 && d2 > 0); return mapL(a[0], function (x) { return fPdf(x, d1, d2); }); });
+def('Fcdf(', 4, 4, function (a) { var lo = num(a[0]), hi = num(a[1]), d1 = num(a[2]), d2 = num(a[3]); dpar(d1 > 0 && d2 > 0 && lo <= hi); return fCdf(hi, d1, d2) - fCdf(lo, d1, d2); });
+function binomArgs(a) { var n = num(a[0]), p = num(a[1]); dpar(n === Math.floor(n) && n >= 1 && p >= 0 && p <= 1); return [n, p]; }
+def('binompdf(', 2, 3, function (a) {
+  var np = binomArgs(a), n = np[0], p = np[1];
+  if (a.length === 2) { if (n + 1 > 999) throw TIErr('INVALID DIM'); var out = []; for (var k = 0; k <= n; k++) out.push(binomPmf(n, p, k)); return out; }
+  return mapL(a[2], function (x) { dpar(x === Math.floor(x) && x >= 0); return binomPmf(n, p, x); });
+});
+def('binomcdf(', 2, 3, function (a) {
+  var np = binomArgs(a), n = np[0], p = np[1];
+  if (a.length === 2) {
+    if (n + 1 > 999) throw TIErr('INVALID DIM');
+    var out = [], s = 0; for (var k = 0; k <= n; k++) { s += binomPmf(n, p, k); out.push(Math.min(1, s)); } out[n] = 1; return out;
+  }
+  return mapL(a[2], function (x) { dpar(x === Math.floor(x) && x >= 0); return binomCdf(n, p, x); });
+});
+def('invBinom(', 3, 3, function (a) {
+  var area = num(a[0]), n = num(a[1]), p = num(a[2]); dpar(area >= 0 && area <= 1 && n === Math.floor(n) && n >= 1 && p >= 0 && p <= 1);
+  var lo = 0, hi = n;
+  while (lo < hi) { var mid = Math.floor((lo + hi) / 2); if (binomCdf(n, p, mid) >= area * (1 - 1e-13)) hi = mid; else lo = mid + 1; }
+  return lo;
+});
+def('poissonpdf(', 2, 2, function (a) { var l = num(a[0]); dpar(l > 0); return mapL(a[1], function (x) { dpar(x === Math.floor(x) && x >= 0); return poisPmf(l, x); }); });
+def('poissoncdf(', 2, 2, function (a) { var l = num(a[0]); dpar(l > 0); return mapL(a[1], function (x) { dpar(x === Math.floor(x) && x >= 0); return poisCdf(l, x); }); });
+def('geometpdf(', 2, 2, function (a) { var p = num(a[0]); dpar(p > 0 && p <= 1); return mapL(a[1], function (x) { dpar(x === Math.floor(x) && x >= 1); return geoPmf(p, x); }); });
+def('geometcdf(', 2, 2, function (a) { var p = num(a[0]); dpar(p > 0 && p <= 1); return mapL(a[1], function (x) { dpar(x === Math.floor(x) && x >= 1); return geoCdf(p, x); }); });
+def('ANOVA(', 2, 6, function (a) { return { screen: anovaLines(a.map(listOf)) }; });
+
+/* lazy functions (need an unevaluated expression) */
+function withVar(node, fn) {
+  if (node.t !== 'var' || !ST.vars.hasOwnProperty(node.name)) throw TIErr('SYNTAX');
+  var saved = ST.vars[node.name];
+  try { return fn(function (x) { ST.vars[node.name] = x; }); } finally { ST.vars[node.name] = saved; }
+}
+LAZY['seq('] = function (args) {
+  if (args.length < 4 || args.length > 5) throw TIErr('ARGUMENT');
+  var b = num(evalNode(args[2])), e = num(evalNode(args[3])), st = args.length > 4 ? num(evalNode(args[4])) : 1;
+  if (st === 0) throw TIErr('DOMAIN');
+  var cnt = Math.floor((e - b) / st + 1e-9) + 1; if (cnt < 1) throw TIErr('DOMAIN'); if (cnt > 999) throw TIErr('INVALID DIM');
+  return withVar(args[1], function (set) { var out = []; for (var i = 0; i < cnt; i++) { set(b + i * st); out.push(num(evalNode(args[0]))); } return out; });
+};
+LAZY['nDeriv('] = function (args) {
+  if (args.length < 3 || args.length > 4) throw TIErr('ARGUMENT');
+  var a = num(evalNode(args[2])), h = args.length > 3 ? num(evalNode(args[3])) : 1e-3; dpar(h !== 0);
+  return withVar(args[1], function (set) { set(a + h); var f1 = num(evalNode(args[0])); set(a - h); var f2 = num(evalNode(args[0])); return (f1 - f2) / (2 * h); });
+};
+LAZY['fnInt('] = function (args) {
+  if (args.length < 4 || args.length > 5) throw TIErr('ARGUMENT');
+  var lo = num(evalNode(args[2])), hi = num(evalNode(args[3]));
+  return withVar(args[1], function (set) {
+    function f(x) { set(x); return num(evalNode(args[0])); }
+    function simpson(a, b, fa, fm, fb) { return (b - a) / 6 * (fa + 4 * fm + fb); }
+    function rec(a, b, fa, fm, fb, whole, tol, depth) {
+      var m = (a + b) / 2, lm = (a + m) / 2, rm = (m + b) / 2, flm = f(lm), frm = f(rm);
+      var left = simpson(a, m, fa, flm, fm), right = simpson(m, b, fm, frm, fb);
+      if (depth <= 0 || Math.abs(left + right - whole) <= 15 * tol) return left + right + (left + right - whole) / 15;
+      return rec(a, m, fa, flm, fm, left, tol / 2, depth - 1) + rec(m, b, fm, frm, fb, right, tol / 2, depth - 1);
+    }
+    if (lo === hi) return 0;
+    var fa = f(lo), fb = f(hi), fm = f((lo + hi) / 2);
+    return rec(lo, hi, fa, fm, fb, simpson(lo, hi, fa, fm, fb), 1e-11, 40);
+  });
+};
+function sortLists(args, asc) {
+  if (!args.length) throw TIErr('ARGUMENT');
+  args.forEach(function (n) { if (n.t !== 'var' || !LISTSET[n.name]) throw TIErr('DATA TYPE'); });
+  var key = ST.lists[args[0].name].slice(), idx = key.map(function (_, i) { return i; });
+  idx.sort(function (i, j) { return asc ? key[i] - key[j] : key[j] - key[i]; });
+  args.forEach(function (n) {
+    var L = ST.lists[n.name]; if (L.length !== key.length) throw TIErr('DIM MISMATCH');
+    ST.lists[n.name] = idx.map(function (i) { return L[i]; });
+  });
+  return { s: 'Done' };
+}
+LAZY['SortA('] = function (args) { return sortLists(args, true); };
+LAZY['SortD('] = function (args) { return sortLists(args, false); };
+
+/* ---------- parser ---------- */
+var RELOPS = ['=', '\u2260', '<', '>', '\u2264', '\u2265'];
+function isDigit(t) { return t !== undefined && t.length === 1 && t >= '0' && t <= '9'; }
+function isFuncTok(t) { return t !== undefined && t.length > 1 && t.charAt(t.length - 1) === '(' && t !== '('; }
+function isVarTok(t) { return ST.vars.hasOwnProperty(t) || LISTSET[t] === 1 || SVSET[t] === 1; }
+function startsPrimary(t) {
+  if (t === undefined) return false;
+  if (isDigit(t) || t === '.' || t === '(' || t === '{' || t === '\u03c0' || t === 'e' || t === 'Ans' || t === 'rand') return true;
+  return isVarTok(t) || isFuncTok(t);
+}
+function parseTokens(tokens) { var p = { t: tokens, i: 0 }; var n = parseOr(p); if (p.i < tokens.length) throw TIErr('SYNTAX'); return n; }
+function B(op, l, r) { return { t: 'bin', op: op, l: l, r: r }; }
+function parseOr(p) { var l = parseAnd(p); while (p.t[p.i] === 'or' || p.t[p.i] === 'xor') { var op = p.t[p.i++]; l = B(op, l, parseAnd(p)); } return l; }
+function parseAnd(p) { var l = parseRel(p); while (p.t[p.i] === 'and') { p.i++; l = B('and', l, parseRel(p)); } return l; }
+function parseRel(p) { var l = parseAdd(p); while (RELOPS.indexOf(p.t[p.i]) >= 0) { var op = p.t[p.i++]; l = B(op, l, parseAdd(p)); } return l; }
+function parseAdd(p) { var l = parseMul(p); while (p.t[p.i] === '+' || p.t[p.i] === '-') { var op = p.t[p.i++]; l = B(op, l, parseMul(p)); } return l; }
+function parseMul(p) {
+  var l = parsePerm(p);
+  for (;;) {
+    var t = p.t[p.i];
+    if (t === '*' || t === '/') { p.i++; l = B(t, l, parsePerm(p)); }
+    else if (startsPrimary(t)) { l = B('*', l, parsePerm(p)); }
+    else break;
+  }
+  return l;
+}
+function parsePerm(p) { var l = parseNeg(p); while (p.t[p.i] === 'nPr' || p.t[p.i] === 'nCr') { var op = p.t[p.i++]; l = B(op, l, parseNeg(p)); } return l; }
+function parseNeg(p) { if (p.t[p.i] === '(-)') { p.i++; return { t: 'neg', a: parseNeg(p) }; } return parsePow(p); }
+function parsePow(p) { var l = parsePost(p); while (p.t[p.i] === '^' || p.t[p.i] === '\u02e3\u221a') { var op = p.t[p.i++]; l = B(op, l, parsePowRhs(p)); } return l; }
+function parsePowRhs(p) { if (p.t[p.i] === '(-)') { p.i++; return { t: 'neg', a: parsePowRhs(p) }; } return parsePost(p); }
+function parsePost(p) {
+  var n = parsePrim(p);
+  for (;;) { var t = p.t[p.i]; if (t === '\u00b2' || t === '\u00b3' || t === '!' || t === '\u207b\u00b9') { p.i++; n = { t: 'post', op: t, a: n }; } else break; }
+  return n;
+}
+function closeOpt(p, c) { if (p.t[p.i] === c) p.i++; else if (p.i < p.t.length) throw TIErr('SYNTAX'); }
+function parseNum(p) {
+  var s = '', dots = 0;
+  while (p.i < p.t.length && (isDigit(p.t[p.i]) || p.t[p.i] === '.')) { if (p.t[p.i] === '.') dots++; s += p.t[p.i++]; }
+  if (dots > 1 || s === '.') throw TIErr('SYNTAX');
+  if (p.t[p.i] === '\u1d07') {
+    p.i++; var neg = false; if (p.t[p.i] === '(-)') { neg = true; p.i++; }
+    var e = ''; while (isDigit(p.t[p.i])) e += p.t[p.i++];
+    if (!e) throw TIErr('SYNTAX'); s += 'e' + (neg ? '-' : '') + e;
+  }
+  return { t: 'num', v: parseFloat(s) };
+}
+function parsePrim(p) {
+  var t = p.t[p.i];
+  if (t === undefined) throw TIErr('SYNTAX');
+  if (isDigit(t) || t === '.') return parseNum(p);
+  p.i++;
+  if (t === '(') { var e = parseOr(p); closeOpt(p, ')'); return e; }
+  if (t === '{') {
+    var items = [];
+    if (p.t[p.i] === '}') { p.i++; return { t: 'list', items: items }; }
+    for (;;) { items.push(parseOr(p)); if (p.t[p.i] === ',') { p.i++; continue; } break; }
+    closeOpt(p, '}'); return { t: 'list', items: items };
+  }
+  if (t === '\u03c0') return { t: 'num', v: Math.PI };
+  if (t === 'e') return { t: 'num', v: Math.E };
+  if (t === 'rand') return { t: 'rand' };
+  if (t === 'Ans') return { t: 'var', name: 'Ans' };
+  if (isFuncTok(t)) {
+    var args = [];
+    if (p.t[p.i] === ')') { p.i++; return { t: 'call', name: t, args: args }; }
+    for (;;) { args.push(parseOr(p)); if (p.t[p.i] === ',') { p.i++; continue; } break; }
+    closeOpt(p, ')'); return { t: 'call', name: t, args: args };
+  }
+  if (LISTSET[t] === 1) {
+    if (p.t[p.i] === '(') { p.i++; var idx = parseOr(p); closeOpt(p, ')'); return { t: 'idx', name: t, idx: idx }; }
+    return { t: 'var', name: t };
+  }
+  if (isVarTok(t)) return { t: 'var', name: t };
+  throw TIErr('SYNTAX');
+}
+
+/* ---------- evaluator ---------- */
+function getVar(name) {
+  if (name === 'Ans') return Array.isArray(ST.ans) ? ST.ans.slice() : ST.ans;
+  if (LISTSET[name] === 1) return ST.lists[name].slice();
+  if (ST.vars.hasOwnProperty(name)) return ST.vars[name];
+  if (ST.sv.hasOwnProperty(name)) return ST.sv[name];
+  throw TIErr('UNDEFINED');
+}
+function powS(x, y) {
+  if (x === 0 && y === 0) throw TIErr('DOMAIN');
+  if (x === 0 && y < 0) throw TIErr('DIVIDE BY 0');
+  if (x < 0 && y !== Math.floor(y)) {
+    var inv = 1 / y;
+    if (Math.abs(inv - Math.round(inv)) < 1e-12 && Math.round(inv) % 2 !== 0) return -Math.pow(-x, y);
+    throw TIErr('NONREAL ANS');
+  }
+  return r14(Math.pow(x, y));
+}
+function sbin(op, x, y) {
+  x = num(x); y = num(y);
+  switch (op) {
+    case '+': return chk(r14(x + y));
+    case '-': return chk(r14(x - y));
+    case '*': return chk(r14(x * y));
+    case '/': if (y === 0) throw TIErr('DIVIDE BY 0'); return chk(r14(x / y));
+    case '^': return chk(powS(x, y));
+    case '\u02e3\u221a': if (x === 0) throw TIErr('DIVIDE BY 0'); return chk(powS(y, 1 / x));
+    case '=': return r14(x) === r14(y) ? 1 : 0;
+    case '\u2260': return r14(x) !== r14(y) ? 1 : 0;
+    case '<': return r14(x) < r14(y) ? 1 : 0;
+    case '>': return r14(x) > r14(y) ? 1 : 0;
+    case '\u2264': return r14(x) <= r14(y) ? 1 : 0;
+    case '\u2265': return r14(x) >= r14(y) ? 1 : 0;
+    case 'and': return (x !== 0 && y !== 0) ? 1 : 0;
+    case 'or': return (x !== 0 || y !== 0) ? 1 : 0;
+    case 'xor': return ((x !== 0) !== (y !== 0)) ? 1 : 0;
+    case 'nPr': return chk(nPr(x, y));
+    case 'nCr': return chk(nCr(x, y));
+  }
+  throw TIErr('SYNTAX');
+}
+function binop(op, a, b) {
+  var la = Array.isArray(a), lb = Array.isArray(b);
+  if (la && lb) { if (a.length !== b.length) throw TIErr('DIM MISMATCH'); return a.map(function (x, i) { return sbin(op, x, b[i]); }); }
+  if (la) return a.map(function (x) { return sbin(op, x, b); });
+  if (lb) return b.map(function (y) { return sbin(op, a, y); });
+  return sbin(op, a, b);
+}
+function postOp(op, x) {
+  switch (op) {
+    case '\u00b2': return chk(r14(x * x));
+    case '\u00b3': return chk(r14(x * x * x));
+    case '!': return chk(factorial(x));
+    case '\u207b\u00b9': if (x === 0) throw TIErr('DIVIDE BY 0'); return chk(r14(1 / x));
+  }
+  throw TIErr('SYNTAX');
+}
+function finish(r) {
+  if (typeof r === 'number') { if (isNaN(r)) throw TIErr('DOMAIN'); if (!isFinite(r)) throw TIErr('OVERFLOW'); return r14(r); }
+  if (Array.isArray(r)) return r.map(finish);
+  return r;
+}
+function evalNode(n) {
+  switch (n.t) {
+    case 'num': return n.v;
+    case 'rand': return Math.random();
+    case 'var': return getVar(n.name);
+    case 'idx': {
+      var L = ST.lists[n.name], i = num(evalNode(n.idx));
+      if (i !== Math.floor(i) || i < 1 || i > L.length) throw TIErr('INVALID DIM');
+      return L[i - 1];
+    }
+    case 'list': return n.items.map(function (x) { return num(evalNode(x)); });
+    case 'neg': return mapL(evalNode(n.a), function (x) { return -x; });
+    case 'post': return mapL(evalNode(n.a), function (x) { return postOp(n.op, x); });
+    case 'bin': return binop(n.op, evalNode(n.l), evalNode(n.r));
+    case 'call': {
+      var lz = LAZY[n.name]; if (lz) return lz(n.args);
+      var d = FN[n.name]; if (!d) throw TIErr('SYNTAX');
+      if (n.args.length < d.n[0] || n.args.length > d.n[1]) throw TIErr('ARGUMENT');
+      return finish(d.f(n.args.map(evalNode)));
+    }
+  }
+  throw TIErr('SYNTAX');
+}
+function evalTokensValue(tokens) { return evalNode(parseTokens(tokens)); }
+
+function toFrac(x) {
+  if (x === Math.floor(x)) return null;
+  var neg = x < 0, a = Math.abs(x), h1 = 1, h0 = 0, k1 = 0, k0 = 1, b = a;
+  for (var i = 0; i < 40; i++) {
+    var ai = Math.floor(b), h2 = ai * h1 + h0, k2 = ai * k1 + k0;
+    h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+    if (k1 > 99999) return null;
+    if (Math.abs(a - h1 / k1) <= 1e-10 * Math.max(1, a)) return (neg ? '-' : '') + h1 + '/' + k1;
+    var fr = b - ai; if (fr < 1e-15) break; b = 1 / fr;
+  }
+  return null;
+}
+
+/* ---------- commands & top-level evaluate ---------- */
+function splitArgs(tokens) {
+  var parts = [], cur = [], depth = 0;
+  tokens.forEach(function (t) {
+    if (t === '(' || t === '{' || isFuncTok(t)) depth++;
+    else if (t === ')' || t === '}') depth--;
+    if (t === ',' && depth === 0) { parts.push(cur); cur = []; } else cur.push(t);
+  });
+  if (cur.length || parts.length) parts.push(cur);
+  return parts;
+}
+function argVals(tokens) { return splitArgs(tokens).map(function (p) { return evalNode(parseTokens(p)); }); }
+var CMDS = {
+  '1-Var Stats ': function (tk) { var a = tk.length ? argVals(tk) : [ST.lists.L1.slice()]; return { t: 'screen', lines: oneVarLines(listOf(a[0]), a[1] ? listOf(a[1]) : null) }; },
+  '2-Var Stats ': function (tk) { var a = tk.length ? argVals(tk) : [ST.lists.L1.slice(), ST.lists.L2.slice()]; if (a.length < 2) throw TIErr('ARGUMENT'); return { t: 'screen', lines: twoVarLines(listOf(a[0]), listOf(a[1]), a[2] ? listOf(a[2]) : null) }; },
+  'LinReg(ax+b) ': function (tk) { var a = tk.length ? argVals(tk) : [ST.lists.L1.slice(), ST.lists.L2.slice()]; if (a.length < 2) throw TIErr('ARGUMENT'); return { t: 'screen', lines: linRegLines(listOf(a[0]), listOf(a[1]), a[2] ? listOf(a[2]) : null, 1) }; },
+  'LinReg(a+bx) ': function (tk) { var a = tk.length ? argVals(tk) : [ST.lists.L1.slice(), ST.lists.L2.slice()]; if (a.length < 2) throw TIErr('ARGUMENT'); return { t: 'screen', lines: linRegLines(listOf(a[0]), listOf(a[1]), a[2] ? listOf(a[2]) : null, 0) }; },
+  'ClrList ': function (tk) {
+    var parts = splitArgs(tk); if (!parts.length) throw TIErr('ARGUMENT');
+    parts.forEach(function (p) { if (p.length !== 1 || !LISTSET[p[0]]) throw TIErr('DATA TYPE'); });
+    parts.forEach(function (p) { ST.lists[p[0]] = []; });
+    return { t: 'str', s: 'Done' };
+  }
+};
+function storeTo(t, v) {
+  if (t.length === 1) {
+    var name = t[0];
+    if (LISTSET[name] === 1) { if (!Array.isArray(v)) throw TIErr('DATA TYPE'); if (v.length > 999) throw TIErr('INVALID DIM'); ST.lists[name] = v.slice(); return; }
+    if (ST.vars.hasOwnProperty(name)) { if (typeof v !== 'number') throw TIErr('DATA TYPE'); ST.vars[name] = v; return; }
+    throw TIErr('SYNTAX');
+  }
+  if (LISTSET[t[0]] === 1 && t[1] === '(') {
+    var inner = t.slice(2); if (inner[inner.length - 1] === ')') inner = inner.slice(0, -1);
+    var i = num(evalTokensValue(inner)); if (typeof v !== 'number') throw TIErr('DATA TYPE');
+    var L = ST.lists[t[0]]; if (i !== Math.floor(i) || i < 1 || i > L.length + 1) throw TIErr('INVALID DIM');
+    L[i - 1] = v; return;
+  }
+  throw TIErr('SYNTAX');
+}
+function evaluate(tokens) {
+  if (!tokens.length) throw TIErr('SYNTAX');
+  if (CMDS[tokens[0]]) return CMDS[tokens[0]](tokens.slice(1));
+  var tk = tokens, conv = null, last = tk[tk.length - 1];
+  if (last === '\u25baFrac' || last === '\u25baDec') { conv = last; tk = tk.slice(0, -1); }
+  var ix = tk.lastIndexOf('\u2192'), target = null;
+  if (ix >= 0) { target = tk.slice(ix + 1); tk = tk.slice(0, ix); if (!target.length) throw TIErr('SYNTAX'); }
+  var v = evalNode(parseTokens(tk));
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    if (v.screen) return { t: 'screen', lines: v.screen };
+    if (v.s) return { t: 'str', s: v.s };
+  }
+  if (target) storeTo(target, v);
+  ST.ans = v;
+  if (conv) {
+    if (typeof v !== 'number') throw TIErr('DATA TYPE');
+    if (conv === '\u25baFrac') { var f = toFrac(v); return f ? { t: 'str', s: f, v: v } : { t: 'val', v: v }; }
+  }
+  return { t: 'val', v: v };
+}
+
+/* ---------- tokenizer ---------- */
+var TOKLIST = null;
+function tokList() {
+  if (TOKLIST) return TOKLIST;
+  var s = {};
+  Object.keys(FN).forEach(function (k) { s[k] = 1; });
+  Object.keys(LAZY).forEach(function (k) { s[k] = 1; });
+  ['Ans', 'nPr', 'nCr', 'and', 'or', 'xor', '\u25baFrac', '\u25baDec', '1-Var Stats ', '2-Var Stats ', 'LinReg(ax+b) ', 'LinReg(a+bx) ', 'ClrList ', 'rand', '\u02e3\u221a', 'e', '\u03c0', '(-)']
+    .concat(LISTNAMES).forEach(function (k) { s[k] = 1; });
+  SVNAMES.forEach(function (k) { if (k.length > 1) s[k] = 1; });
+  TOKLIST = Object.keys(s).sort(function (a, b) { return b.length - a.length; });
+  return TOKLIST;
+}
+var UNARY_PREV = ['(', ',', '{', '+', '-', '*', '/', '^', '\u2192', '=', '\u2260', '<', '>', '\u2264', '\u2265', '(-)', 'and', 'or', 'xor', 'nPr', 'nCr', '\u1d07', '\u02e3\u221a'];
+function isUnaryCtx(out) { if (!out.length) return true; var p = out[out.length - 1]; return UNARY_PREV.indexOf(p) >= 0 || isFuncTok(p); }
+function tokenize(str) {
+  var out = [], i = 0, L = tokList();
+  while (i < str.length) {
+    var ch = str.charAt(i);
+    if (ch === ' ') { i++; continue; }
+    var m = null;
+    for (var j = 0; j < L.length; j++) { if (str.substr(i, L[j].length) === L[j]) { m = L[j]; break; } }
+    if (m) { out.push(m); i += m.length; continue; }
+    if (ch === 'E' && out.length && isDigit(out[out.length - 1]) && (isDigit(str.charAt(i + 1)) || str.charAt(i + 1) === '-')) {
+      out.push('\u1d07'); i++; if (str.charAt(i) === '-') { out.push('(-)'); i++; } continue;
+    }
+    if (ch === '-') { out.push(isUnaryCtx(out) ? '(-)' : '-'); i++; continue; }
+    out.push(ch); i++;
+  }
+  return out;
+}
+
+/* ---------- hypothesis-test forms ---------- */
+var LSTOPT = LISTNAMES.slice(), FRQOPT = ['1'].concat(LISTNAMES);
+function F_ch(k, label, opts, d) { return { k: k, label: label, type: 'choice', opts: opts, def: d || 0 }; }
+function F_num(k, label, d) { return { k: k, label: label, type: 'num', def: d === undefined ? '0' : d }; }
+function F_lst(k, label, d) { return { k: k, label: label, type: 'choice', opts: LSTOPT, def: d || 0, single: true }; }
+function F_frq(k, label) { return { k: k, label: label, type: 'choice', opts: FRQOPT, def: 0, single: true }; }
+var F_calc = { k: '_calc', label: 'Calculate', type: 'calc' };
+var FORMS = {}, FORM_ORDER = [];
+function reg(id, title, fields, run) { FORMS[id] = { id: id, title: title, fields: fields, run: run }; FORM_ORDER.push(id); }
+function makeG(vals) {
+  return {
+    sel: function (k) { return vals[k]; },
+    num: function (k) { var tk = vals[k]; if (!tk || !tk.length) throw TIErr('SYNTAX'); var r = evalTokensValue(tk); if (typeof r !== 'number') throw TIErr('DATA TYPE'); return r; },
+    numOpt: function (k) { var tk = vals[k]; if (!tk || !tk.length) return null; return this.num(k); },
+    list: function (k) { return ST.lists[LSTOPT[vals[k]]].slice(); },
+    freq: function (k) { var i = vals[k]; return i === 0 ? null : ST.lists[LSTOPT[i - 1]].slice(); },
+    data: function (lk, fk) { return sumstats(this.list(lk), fk ? this.freq(fk) : null); }
+  };
+}
+function chkN(n, min) { if (!(n >= (min || 1)) || n !== Math.floor(n)) throw TIErr('DOMAIN'); }
+function cLevel(g) { var c = g.num('c'); if (c >= 1 && c < 100) c /= 100; if (!(c > 0 && c < 1)) throw TIErr('DOMAIN'); return c; }
+function ciLine(lo, hi) { return '(' + fmt(lo) + ',' + fmt(hi) + ')'; }
+var OPS3 = ['\u2260', '<', '>'];
+
+function oneSamp(g, withSd) {
+  if (g.sel('inpt') === 0) { var d = g.data('list', 'freq'); return { m: d.mean, s: d.sd, n: d.n }; }
+  return { m: g.num('xbar'), s: withSd ? g.num('sx') : null, n: g.num('n') };
+}
+function oneSampFields(v, withSd, sigma) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats'])];
+  return { head: f, tail: function () { return v.inpt === 0 ? [F_lst('list', 'List:'), F_frq('freq', 'Freq:')] : [F_num('xbar', XBAR + ':', '0')].concat(withSd ? [F_num('sx', 'Sx:', '1')] : [], [F_num('n', 'n:', '2')]); } };
+}
+
+reg('ztest', 'Z-Test...', function (v) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats']), F_num('mu0', '\u03bc0:', '0'), F_num('sigma', '\u03c3:', '1')];
+  if (v.inpt === 0) f.push(F_lst('list', 'List:'), F_frq('freq', 'Freq:')); else f.push(F_num('xbar', XBAR + ':', '0'), F_num('n', 'n:', '1'));
+  f.push(F_ch('alt', '\u03bc:', ['\u2260\u03bc0', '<\u03bc0', '>\u03bc0']), F_calc); return f;
+}, function (g) {
+  var mu0 = g.num('mu0'), sg = g.num('sigma'); if (!(sg > 0)) throw TIErr('DOMAIN');
+  var d = oneSamp(g, false); if (g.sel('inpt') === 1) chkN(d.n);
+  var z = (d.m - mu0) / (sg / Math.sqrt(d.n)), alt = g.sel('alt'), p = pFromZ(z, alt);
+  var o = { z: z, p: p, n: d.n }; o[XBAR] = d.m; if (g.sel('inpt') === 0) o.Sx = d.s; setSV(o);
+  var L = ['Z-Test', '\u03bc' + OPS3[alt] + fmt(mu0), kv('z', z), kv('p', p), kv(XBAR, d.m)];
+  if (g.sel('inpt') === 0) L.push(kv('Sx', d.s)); L.push(kv('n', d.n)); return L;
+});
+reg('ttest', 'T-Test...', function (v) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats']), F_num('mu0', '\u03bc0:', '0')];
+  if (v.inpt === 0) f.push(F_lst('list', 'List:'), F_frq('freq', 'Freq:')); else f.push(F_num('xbar', XBAR + ':', '0'), F_num('sx', 'Sx:', '1'), F_num('n', 'n:', '2'));
+  f.push(F_ch('alt', '\u03bc:', ['\u2260\u03bc0', '<\u03bc0', '>\u03bc0']), F_calc); return f;
+}, function (g) {
+  var mu0 = g.num('mu0'), d = oneSamp(g, true); chkN(d.n, 2); if (!(d.s >= 0)) throw TIErr('DOMAIN');
+  var df = d.n - 1, t = (d.m - mu0) / (d.s / Math.sqrt(d.n)), alt = g.sel('alt'), p = pFromT(t, df, alt);
+  var o = { t: t, p: p, df: df, Sx: d.s, n: d.n }; o[XBAR] = d.m; setSV(o);
+  return ['T-Test', '\u03bc' + OPS3[alt] + fmt(mu0), kv('t', t), kv('p', p), kv('df', df), kv(XBAR, d.m), kv('Sx', d.s), kv('n', d.n)];
+});
+function twoSampFields(stats, z) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats'])];
+  return f;
+}
+function twoSamp(g, needSd) {
+  if (g.sel('inpt') === 0) { var a = g.data('list1', 'freq1'), b = g.data('list2', 'freq2'); return { m1: a.mean, s1: a.sd, n1: a.n, m2: b.mean, s2: b.sd, n2: b.n }; }
+  return { m1: g.num('x1'), s1: needSd ? g.num('s1') : null, n1: g.num('n1'), m2: g.num('x2'), s2: needSd ? g.num('s2') : null, n2: g.num('n2') };
+}
+function twoSampInputs(v, needSd) {
+  if (v.inpt === 0) return [F_lst('list1', 'List1:', 0), F_lst('list2', 'List2:', 1), F_frq('freq1', 'Freq1:'), F_frq('freq2', 'Freq2:')];
+  return [F_num('x1', XBAR + '1:', '0'), needSd ? F_num('s1', 'Sx1:', '1') : null, F_num('n1', 'n1:', '2'), F_num('x2', XBAR + '2:', '0'), needSd ? F_num('s2', 'Sx2:', '1') : null, F_num('n2', 'n2:', '2')].filter(Boolean);
+}
+function twoSampSV(d, o) { o[XBAR + '1'] = d.m1; o[XBAR + '2'] = d.m2; if (d.s1 !== null) { o.Sx1 = d.s1; o.Sx2 = d.s2; } o.n1 = d.n1; o.n2 = d.n2; setSV(o); }
+function twoSampLines(title, alt, d, test, withSd, extra) {
+  var L = [title, '\u03bc1' + OPS3[alt] + '\u03bc2'];
+  return L;
+}
+reg('z2test', '2-SampZTest...', function (v) {
+  return [F_ch('inpt', 'Inpt:', ['Data', 'Stats']), F_num('sg1', '\u03c31:', '1'), F_num('sg2', '\u03c32:', '1')].concat(twoSampInputs(v, false), [F_ch('alt', '\u03bc1:', ['\u2260\u03bc2', '<\u03bc2', '>\u03bc2']), F_calc]);
+}, function (g) {
+  var s1 = g.num('sg1'), s2 = g.num('sg2'); if (!(s1 > 0 && s2 > 0)) throw TIErr('DOMAIN');
+  var d = twoSamp(g, false); if (g.sel('inpt') === 1) { chkN(d.n1); chkN(d.n2); }
+  var z = (d.m1 - d.m2) / Math.sqrt(s1 * s1 / d.n1 + s2 * s2 / d.n2), alt = g.sel('alt'), p = pFromZ(z, alt);
+  twoSampSV(d, { z: z, p: p });
+  var L = ['2-SampZTest', '\u03bc1' + OPS3[alt] + '\u03bc2', kv('z', z), kv('p', p), kv(XBAR + '1', d.m1), kv(XBAR + '2', d.m2)];
+  if (g.sel('inpt') === 0) L.push(kv('Sx1', d.s1), kv('Sx2', d.s2)); L.push(kv('n1', d.n1), kv('n2', d.n2)); return L;
+});
+reg('t2test', '2-SampTTest...', function (v) {
+  return [F_ch('inpt', 'Inpt:', ['Data', 'Stats'])].concat(twoSampInputs(v, true), [F_ch('alt', '\u03bc1:', ['\u2260\u03bc2', '<\u03bc2', '>\u03bc2']), F_ch('pooled', 'Pooled:', ['No', 'Yes']), F_calc]);
+}, function (g) {
+  var d = twoSamp(g, true); chkN(d.n1, 2); chkN(d.n2, 2); if (!(d.s1 >= 0 && d.s2 >= 0)) throw TIErr('DOMAIN');
+  var pooled = g.sel('pooled') === 1, alt = g.sel('alt'), v1 = d.s1 * d.s1, v2 = d.s2 * d.s2, t, df, sxp = null;
+  if (pooled) { df = d.n1 + d.n2 - 2; sxp = Math.sqrt(((d.n1 - 1) * v1 + (d.n2 - 1) * v2) / df); t = (d.m1 - d.m2) / (sxp * Math.sqrt(1 / d.n1 + 1 / d.n2)); }
+  else { var a = v1 / d.n1, b = v2 / d.n2; t = (d.m1 - d.m2) / Math.sqrt(a + b); df = (a + b) * (a + b) / (a * a / (d.n1 - 1) + b * b / (d.n2 - 1)); }
+  var p = pFromT(t, df, alt), o = { t: t, p: p, df: df }; if (sxp !== null) o.Sxp = sxp; twoSampSV(d, o);
+  var L = ['2-SampTTest', '\u03bc1' + OPS3[alt] + '\u03bc2', kv('t', t), kv('p', p), kv('df', df), kv(XBAR + '1', d.m1), kv(XBAR + '2', d.m2), kv('Sx1', d.s1), kv('Sx2', d.s2)];
+  if (sxp !== null) L.push(kv('Sxp', sxp)); L.push(kv('n1', d.n1), kv('n2', d.n2)); return L;
+});
+reg('p1test', '1-PropZTest...', function () {
+  return [F_num('p0', 'p0:', '.5'), F_num('x', 'x:', '0'), F_num('n', 'n:', '1'), F_ch('alt', 'prop:', ['\u2260p0', '<p0', '>p0']), F_calc];
+}, function (g) {
+  var p0 = g.num('p0'), x = g.num('x'), n = g.num('n'); if (!(p0 > 0 && p0 < 1)) throw TIErr('DOMAIN'); chkN(n); if (x !== Math.floor(x) || x < 0 || x > n) throw TIErr('DOMAIN');
+  var ph = x / n, z = (ph - p0) / Math.sqrt(p0 * (1 - p0) / n), alt = g.sel('alt'), p = pFromZ(z, alt), o = { z: z, p: p, n: n }; o[PHAT] = ph; setSV(o);
+  return ['1-PropZTest', 'prop' + OPS3[alt] + fmt(p0), kv('z', z), kv('p', p), kv(PHAT, ph), kv('n', n)];
+});
+reg('p2test', '2-PropZTest...', function () {
+  return [F_num('x1', 'x1:', '0'), F_num('n1', 'n1:', '1'), F_num('x2', 'x2:', '0'), F_num('n2', 'n2:', '1'), F_ch('alt', 'p1:', ['\u2260p2', '<p2', '>p2']), F_calc];
+}, function (g) {
+  var x1 = g.num('x1'), n1 = g.num('n1'), x2 = g.num('x2'), n2 = g.num('n2'); chkN(n1); chkN(n2);
+  if (x1 !== Math.floor(x1) || x1 < 0 || x1 > n1 || x2 !== Math.floor(x2) || x2 < 0 || x2 > n2) throw TIErr('DOMAIN');
+  var p1 = x1 / n1, p2 = x2 / n2, pp = (x1 + x2) / (n1 + n2), alt = g.sel('alt'), se = Math.sqrt(pp * (1 - pp) * (1 / n1 + 1 / n2));
+  if (se === 0) throw TIErr('DOMAIN');
+  var z = (p1 - p2) / se, p = pFromZ(z, alt), o = { z: z, p: p, n1: n1, n2: n2 }; o[PHAT + '1'] = p1; o[PHAT + '2'] = p2; o[PHAT] = pp; setSV(o);
+  return ['2-PropZTest', 'p1' + OPS3[alt] + 'p2', kv('z', z), kv('p', p), kv(PHAT + '1', p1), kv(PHAT + '2', p2), kv(PHAT, pp), kv('n1', n1), kv('n2', n2)];
+});
+reg('zint', 'ZInterval...', function (v) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats']), F_num('sigma', '\u03c3:', '1')];
+  if (v.inpt === 0) f.push(F_lst('list', 'List:'), F_frq('freq', 'Freq:')); else f.push(F_num('xbar', XBAR + ':', '0'), F_num('n', 'n:', '1'));
+  f.push(F_num('c', 'C-Level:', '.95'), F_calc); return f;
+}, function (g) {
+  var sg = g.num('sigma'); if (!(sg > 0)) throw TIErr('DOMAIN'); var d = oneSamp(g, false); if (g.sel('inpt') === 1) chkN(d.n);
+  var c = cLevel(g), z = invNormStd((1 + c) / 2), me = z * sg / Math.sqrt(d.n), o = { lower: d.m - me, upper: d.m + me, n: d.n }; o[XBAR] = d.m; setSV(o);
+  var L = ['ZInterval', ciLine(d.m - me, d.m + me), kv(XBAR, d.m)]; if (g.sel('inpt') === 0) L.push(kv('Sx', d.s)); L.push(kv('n', d.n)); return L;
+});
+reg('tint', 'TInterval...', function (v) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats'])];
+  if (v.inpt === 0) f.push(F_lst('list', 'List:'), F_frq('freq', 'Freq:')); else f.push(F_num('xbar', XBAR + ':', '0'), F_num('sx', 'Sx:', '1'), F_num('n', 'n:', '2'));
+  f.push(F_num('c', 'C-Level:', '.95'), F_calc); return f;
+}, function (g) {
+  var d = oneSamp(g, true); chkN(d.n, 2); var c = cLevel(g), df = d.n - 1, t = invT((1 + c) / 2, df), me = t * d.s / Math.sqrt(d.n);
+  var o = { lower: d.m - me, upper: d.m + me, df: df, Sx: d.s, n: d.n }; o[XBAR] = d.m; setSV(o);
+  return ['TInterval', ciLine(d.m - me, d.m + me), kv('df', df), kv(XBAR, d.m), kv('Sx', d.s), kv('n', d.n)];
+});
+reg('z2int', '2-SampZInt...', function (v) {
+  return [F_ch('inpt', 'Inpt:', ['Data', 'Stats']), F_num('sg1', '\u03c31:', '1'), F_num('sg2', '\u03c32:', '1')].concat(twoSampInputs(v, false), [F_num('c', 'C-Level:', '.95'), F_calc]);
+}, function (g) {
+  var s1 = g.num('sg1'), s2 = g.num('sg2'); if (!(s1 > 0 && s2 > 0)) throw TIErr('DOMAIN');
+  var d = twoSamp(g, false); if (g.sel('inpt') === 1) { chkN(d.n1); chkN(d.n2); }
+  var c = cLevel(g), z = invNormStd((1 + c) / 2), diff = d.m1 - d.m2, me = z * Math.sqrt(s1 * s1 / d.n1 + s2 * s2 / d.n2);
+  twoSampSV(d, { lower: diff - me, upper: diff + me });
+  return ['2-SampZInt', ciLine(diff - me, diff + me), kv(XBAR + '1', d.m1), kv(XBAR + '2', d.m2), kv('n1', d.n1), kv('n2', d.n2)];
+});
+reg('t2int', '2-SampTInt...', function (v) {
+  return [F_ch('inpt', 'Inpt:', ['Data', 'Stats'])].concat(twoSampInputs(v, true), [F_num('c', 'C-Level:', '.95'), F_ch('pooled', 'Pooled:', ['No', 'Yes']), F_calc]);
+}, function (g) {
+  var d = twoSamp(g, true); chkN(d.n1, 2); chkN(d.n2, 2); var c = cLevel(g), pooled = g.sel('pooled') === 1, v1 = d.s1 * d.s1, v2 = d.s2 * d.s2, df, se, sxp = null;
+  if (pooled) { df = d.n1 + d.n2 - 2; sxp = Math.sqrt(((d.n1 - 1) * v1 + (d.n2 - 1) * v2) / df); se = sxp * Math.sqrt(1 / d.n1 + 1 / d.n2); }
+  else { var a = v1 / d.n1, b = v2 / d.n2; se = Math.sqrt(a + b); df = (a + b) * (a + b) / (a * a / (d.n1 - 1) + b * b / (d.n2 - 1)); }
+  var t = invT((1 + c) / 2, df), diff = d.m1 - d.m2, me = t * se, o = { lower: diff - me, upper: diff + me, df: df }; if (sxp !== null) o.Sxp = sxp; twoSampSV(d, o);
+  var L = ['2-SampTInt', ciLine(diff - me, diff + me), kv('df', df), kv(XBAR + '1', d.m1), kv(XBAR + '2', d.m2), kv('Sx1', d.s1), kv('Sx2', d.s2)];
+  if (sxp !== null) L.push(kv('Sxp', sxp)); L.push(kv('n1', d.n1), kv('n2', d.n2)); return L;
+});
+reg('p1int', '1-PropZInt...', function () {
+  return [F_num('x', 'x:', '0'), F_num('n', 'n:', '1'), F_num('c', 'C-Level:', '.95'), F_calc];
+}, function (g) {
+  var x = g.num('x'), n = g.num('n'); chkN(n); if (x !== Math.floor(x) || x < 0 || x > n) throw TIErr('DOMAIN');
+  var c = cLevel(g), z = invNormStd((1 + c) / 2), ph = x / n, me = z * Math.sqrt(ph * (1 - ph) / n), o = { lower: ph - me, upper: ph + me, n: n }; o[PHAT] = ph; setSV(o);
+  return ['1-PropZInt', ciLine(ph - me, ph + me), kv(PHAT, ph), kv('n', n)];
+});
+reg('p2int', '2-PropZInt...', function () {
+  return [F_num('x1', 'x1:', '0'), F_num('n1', 'n1:', '1'), F_num('x2', 'x2:', '0'), F_num('n2', 'n2:', '1'), F_num('c', 'C-Level:', '.95'), F_calc];
+}, function (g) {
+  var x1 = g.num('x1'), n1 = g.num('n1'), x2 = g.num('x2'), n2 = g.num('n2'); chkN(n1); chkN(n2);
+  if (x1 !== Math.floor(x1) || x1 < 0 || x1 > n1 || x2 !== Math.floor(x2) || x2 < 0 || x2 > n2) throw TIErr('DOMAIN');
+  var c = cLevel(g), z = invNormStd((1 + c) / 2), p1 = x1 / n1, p2 = x2 / n2, me = z * Math.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2);
+  var o = { lower: p1 - p2 - me, upper: p1 - p2 + me, n1: n1, n2: n2 }; o[PHAT + '1'] = p1; o[PHAT + '2'] = p2; setSV(o);
+  return ['2-PropZInt', ciLine(p1 - p2 - me, p1 - p2 + me), kv(PHAT + '1', p1), kv(PHAT + '2', p2), kv('n1', n1), kv('n2', n2)];
+});
+reg('gof', '\u03c7\u00b2GOF-Test...', function () {
+  return [F_lst('obs', 'Observed:', 0), F_lst('exp', 'Expected:', 1), F_num('df', 'df:', ''), F_calc];
+}, function (g) {
+  var O = g.list('obs'), E = g.list('exp'); if (O.length !== E.length) throw TIErr('DIM MISMATCH'); if (O.length < 2) throw TIErr('INVALID DIM');
+  var df = g.numOpt('df'); if (df === null) df = O.length - 1; dpar(df >= 1 && df === Math.floor(df));
+  var chi = 0, cn = O.map(function (o, i) { if (!(E[i] > 0)) throw TIErr('DOMAIN'); var c = (o - E[i]) * (o - E[i]) / E[i]; chi += c; return c; });
+  var p = chi2Sf(chi, df); setSV({ '\u03c7\u00b2': chi, p: p, df: df });
+  return ['\u03c7\u00b2GOF-Test', kv('\u03c7\u00b2', chi), kv('p', p), kv('df', df), 'CNTRB=' + fmtValue(cn)];
+});
+reg('ftest', '2-SampFTest...', function (v) {
+  var f = [F_ch('inpt', 'Inpt:', ['Data', 'Stats'])];
+  if (v.inpt === 0) f.push(F_lst('list1', 'List1:', 0), F_lst('list2', 'List2:', 1), F_frq('freq1', 'Freq1:'), F_frq('freq2', 'Freq2:'));
+  else f.push(F_num('s1', 'Sx1:', '1'), F_num('n1', 'n1:', '2'), F_num('s2', 'Sx2:', '1'), F_num('n2', 'n2:', '2'));
+  f.push(F_ch('alt', '\u03c31:', ['\u2260\u03c32', '<\u03c32', '>\u03c32']), F_calc); return f;
+}, function (g) {
+  var s1, s2, n1, n2;
+  if (g.sel('inpt') === 0) { var a = g.data('list1', 'freq1'), b = g.data('list2', 'freq2'); s1 = a.sd; s2 = b.sd; n1 = a.n; n2 = b.n; }
+  else { s1 = g.num('s1'); s2 = g.num('s2'); n1 = g.num('n1'); n2 = g.num('n2'); }
+  chkN(n1, 2); chkN(n2, 2); if (!(s1 > 0 && s2 > 0)) throw TIErr('DOMAIN');
+  var F = s1 * s1 / (s2 * s2), d1 = n1 - 1, d2 = n2 - 1, alt = g.sel('alt'), lo = fCdf(F, d1, d2), hi = fSf(F, d1, d2);
+  var p = alt === 0 ? Math.min(1, 2 * Math.min(lo, hi)) : alt === 1 ? lo : hi;
+  setSV({ F: F, p: p, Sx1: s1, Sx2: s2, n1: n1, n2: n2 });
+  return ['2-SampFTest', '\u03c31' + OPS3[alt] + '\u03c32', kv('F', F), kv('p', p), kv('Sx1', s1), kv('Sx2', s2), kv('n1', n1), kv('n2', n2)];
+});
+reg('linregt', 'LinRegTTest...', function () {
+  return [F_lst('xl', 'Xlist:', 0), F_lst('yl', 'Ylist:', 1), F_ch('alt', '\u03b2&\u03c1:', ['\u22600', '<0', '>0']), F_calc];
+}, function (g) {
+  var R = regress(g.list('xl'), g.list('yl'), null); chkN(R.n, 3);
+  var df = R.n - 2, r2 = R.r * R.r, alt = g.sel('alt'), sse = Math.max(0, R.Syy - R.slope * R.Sxy), s = Math.sqrt(sse / df);
+  var t = R.r * Math.sqrt(df / (1 - r2)); if (!isFinite(t)) t = R.r > 0 ? 1e99 : -1e99;
+  var p = pFromT(t, df, alt); setSV({ t: t, p: p, df: df, a: R.icpt, b: R.slope, s: s, r: R.r, 'r\u00b2': r2 });
+  var lab = ['\u03b2\u22600 and \u03c1\u22600', '\u03b2<0 and \u03c1<0', '\u03b2>0 and \u03c1>0'][alt];
+  return ['LinRegTTest', 'y=\u03b1+\u03b2x', lab, kv('t', t), kv('p', p), kv('df', df), kv('a', R.icpt), kv('b', R.slope), kv('s', s), kv('r\u00b2', r2), kv('r', R.r)];
+});
+
+function defaultVals(id) {
+  var form = FORMS[id], vals = {}, guard = 0, changed = true;
+  while (changed && guard++ < 5) {
+    changed = false;
+    form.fields(vals).forEach(function (f) {
+      if (f.type === 'calc' || vals.hasOwnProperty(f.k)) return;
+      vals[f.k] = f.type === 'choice' ? f.def : tokenize(f.def); changed = true;
+    });
+  }
+  return vals;
+}
+function runForm(id, vals) { return FORMS[id].run(makeG(vals)); }
+
+/* ---------- exports ---------- */
+G.TI = {
+  S: S, ST: ST, LISTNAMES: LISTNAMES, SVNAMES: SVNAMES, FN: FN, LAZY: LAZY, FORMS: FORMS, FORM_ORDER: FORM_ORDER,
+  evaluate: evaluate, tokenize: tokenize, fmt: fmt, fmtValue: fmtValue, isUnaryCtx: isUnaryCtx, isFuncTok: isFuncTok,
+  defaultVals: defaultVals, runForm: runForm, evalTokensValue: evalTokensValue, tokList: tokList,
+  XBAR: XBAR, YBAR: YBAR, PHAT: PHAT,
+  math: { normCdf: normCdf, invNormStd: invNormStd, tCdf: tCdf, invT: invT, binomCdf: binomCdf, binomPmf: binomPmf, chi2Cdf: chi2Cdf, fCdf: fCdf, lgamma: lgamma, gammaQ: gammaQ, betaI: betaI }
+};
+if (typeof module !== 'undefined') module.exports = G.TI;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+'use strict';
+var TI = window.TI, S = TI.S, ST = TI.ST, XBAR = TI.XBAR, YBAR = TI.YBAR, PHAT = TI.PHAT;
+var COLS = 18, ROWS = 8, CELLW = 6, CELLH = 10, FONTSTACK = '"SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New", monospace', FONTPX = 0;
+function $(id) { return document.getElementById(id); }
+
+var U = { mode: 'home', second: false, alpha: false, alock: false, off: false, entry: [], cur: 0, hist: [], eh: [], ehi: -1,
+  menu: null, form: null, grid: null, result: null, err: null, errSel: 0, msel: { r: 0, c: 0 }, typeBuf: '' };
+var FV = {};
+
+/* ---------- cells ---------- */
+function gl(str) { return str.match(/[\s\S][\u0300-\u036f]*/g) || []; }
+var DISP = { '\u1d07': ['E'], '(-)': ['-'], 'and': [' ', 'a', 'n', 'd', ' '], 'or': [' ', 'o', 'r', ' '], 'xor': [' ', 'x', 'o', 'r', ' '] };
+function displayOf(t) { return DISP[t] || gl(t); }
+function cellsStr(str, k) { return gl(str).map(function (c) { return { c: c, k: k || '' }; }); }
+function curGlyph() { return U.second ? '\u2191' : (U.alpha || U.alock) ? 'A' : ' '; }
+function tokCells(tokens, curIdx) {
+  var out = [];
+  tokens.forEach(function (t, i) {
+    displayOf(t).forEach(function (c, j) {
+      var cell = { c: c, k: t === '(-)' ? 'neg' : '' };
+      if (curIdx === i && j === 0) cell.k = 'cur';
+      out.push(cell);
+    });
+  });
+  if (curIdx !== null && curIdx !== undefined && curIdx >= tokens.length) out.push({ c: curGlyph(), k: 'cur' });
+  return out;
+}
+function chunk(cells) { var rows = []; for (var i = 0; i < cells.length; i += COLS) rows.push(cells.slice(i, i + COLS)); if (!rows.length) rows.push([]); return rows; }
+function padTo(cells, n, k) { var o = cells.slice(); while (o.length < n) o.push({ c: ' ', k: k || '' }); return o; }
+function padLeft(cells) { var o = cells.slice(); while (o.length < COLS) o.unshift({ c: ' ', k: '' }); return o; }
+function esc(c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c; }
+function rowHTML(cells, attrs) {
+  var h = '<div class="r"' + (attrs || '') + '>', i = 0;
+  while (i < cells.length) {
+    var k = cells[i].k, o = cells[i].o, txt = '';
+    while (i < cells.length && cells[i].k === k && cells[i].o === o) { txt += esc(cells[i].c); i++; }
+    h += '<span' + (k ? ' class="' + k + '"' : '') + (o !== undefined ? ' data-o="' + o + '"' : '') + '>' + txt + '</span>';
+  }
+  return h + '</div>';
+}
+function moreArrow(rows, more) {
+  if (!more || !rows.length) return;
+  var r = rows[rows.length - 1].cells, k = r.length > COLS - 1 && r[COLS - 1] ? r[COLS - 1].k : '';
+  while (r.length < COLS) r.push({ c: ' ', k: k });
+  r[COLS - 1] = { c: '\u2193', k: k };
+}
+
+/* ---------- menus ---------- */
+function T(l) { var t = Array.prototype.slice.call(arguments, 1); return { l: l, t: t.length ? t : [l] }; }
+function TT(l, tok) { return { l: l, t: [tok] }; }
+var STATTOK = [XBAR, 'Sx', '\u03c3x', 'n', 'minX', 'Q1', 'Med', 'Q3', 'maxX', '\u03a3x', '\u03a3x\u00b2', YBAR, 'Sy', '\u03c3y', '\u03a3y', '\u03a3y\u00b2', '\u03a3xy', 'a', 'b', 'r', 'r\u00b2'];
+var TESTTOK = ['p', 'z', 't', '\u03c7\u00b2', 'df', PHAT, PHAT + '1', PHAT + '2', XBAR + '1', XBAR + '2', 'Sx1', 'Sx2', 'Sxp', 'n1', 'n2', 'lower', 'upper', 'F', 's'];
+var MENUS = {};
+MENUS.math = { tabs: [
+  { name: 'MATH', items: [T('\u25baFrac'), T('\u25baDec'), T('\u00b3'), T('\u00b3\u221a('), T('\u02e3\u221a'), T('nDeriv('), T('fnInt(')] },
+  { name: 'NUM', items: [T('abs('), T('round('), T('iPart('), T('fPart('), T('int('), T('min('), T('max('), T('lcm('), T('gcd(')] },
+  { name: 'PRB', items: [T('rand'), T('nPr'), T('nCr'), T('!'), T('randInt('), T('randNorm('), T('randBin(')] }] };
+MENUS.test = { tabs: [
+  { name: 'TEST', items: [T('='), T('\u2260'), T('>'), T('\u2265'), T('<'), T('\u2264')] },
+  { name: 'LOGIC', items: [T('and'), T('or'), T('xor'), T('not(')] }] };
+var WIZ_SPEC = {
+  'normalpdf(': [['x value:', '0'], ['\u03bc:', '0'], ['\u03c3:', '1']],
+  'normalcdf(': [['lower:', '-1E99'], ['upper:', '1E99'], ['\u03bc:', '0'], ['\u03c3:', '1']],
+  'invNorm(': [['area:', '.95'], ['\u03bc:', '0'], ['\u03c3:', '1']],
+  'invT(': [['area:', '.975'], ['df:', '10']],
+  'tpdf(': [['x value:', '0'], ['df:', '10']],
+  'tcdf(': [['lower:', '-1E99'], ['upper:', '2'], ['df:', '10']],
+  '\u03c7\u00b2pdf(': [['x value:', '3'], ['df:', '2']],
+  '\u03c7\u00b2cdf(': [['lower:', '0'], ['upper:', '3.84'], ['df:', '1']],
+  'Fpdf(': [['x value:', '1'], ['numerator df:', '3'], ['denom df:', '10']],
+  'Fcdf(': [['lower:', '0'], ['upper:', '2.5'], ['numer df:', '3'], ['denom df:', '10']],
+  'binompdf(': [['trials:', '10'], ['p:', '.5'], ['x value:', '']],
+  'binomcdf(': [['trials:', '10'], ['p:', '.5'], ['x value:', '']],
+  'invBinom(': [['area:', '.9'], ['trials:', '20'], ['p:', '.3']],
+  'poissonpdf(': [['\u03bb:', '4'], ['x value:', '2']],
+  'poissoncdf(': [['\u03bb:', '4'], ['x value:', '2']],
+  'geometpdf(': [['p:', '.2'], ['x value:', '4']],
+  'geometcdf(': [['p:', '.2'], ['x value:', '4']]
+};
+var DISTR_ORDER = ['normalpdf(', 'normalcdf(', 'invNorm(', 'invT(', 'tpdf(', 'tcdf(', '\u03c7\u00b2pdf(', '\u03c7\u00b2cdf(', 'Fpdf(', 'Fcdf(',
+  'binompdf(', 'binomcdf(', 'poissonpdf(', 'poissoncdf(', 'geometpdf(', 'geometcdf(', 'invBinom('];
+var WIZ = {};
+DISTR_ORDER.forEach(function (name) {
+  var spec = WIZ_SPEC[name];
+  WIZ['wiz:' + name] = { name: name, spec: spec, fields: function () {
+    var f = [{ k: '_t', label: name, type: 'title' }];
+    spec.forEach(function (sp, i) { f.push({ k: 'a' + i, label: sp[0], type: 'num', def: sp[1] }); });
+    f.push({ k: '_paste', label: 'Paste', type: 'calc' }, { k: '_calc', label: 'Calculate', type: 'calc' });
+    return f;
+  } };
+});
+function getForm(id) { return WIZ[id] || TI.FORMS[id]; }
+MENUS.distr = { tabs: [
+  { name: 'DISTR', items: DISTR_ORDER.map(function (n) { return { l: n, a: function () { openForm('wiz:' + n); } }; }) },
+  { name: 'NAME', items: DISTR_ORDER.map(function (n) { return T(n); }) }] };
+MENUS.list = { tabs: [
+  { name: 'NAMES', items: TI.LISTNAMES.map(function (x) { return T(x); }) },
+  { name: 'OPS', items: [T('SortA('), T('SortD('), T('dim('), T('seq('), T('cumSum('), T('\u0394List('), T('augment(')] },
+  { name: 'MATH', items: [T('min('), T('max('), T('mean('), T('median('), T('sum('), T('prod('), T('stdDev('), T('variance(')] }] };
+MENUS.vars = { tabs: [
+  { name: 'STAT', items: STATTOK.map(function (x) { return T(x); }) },
+  { name: 'TEST', items: TESTTOK.map(function (x) { return T(x); }) }] };
+function statMenu() {
+  var tests = TI.FORM_ORDER.map(function (id) { return { l: TI.FORMS[id].title, a: function () { openForm(id); } }; });
+  tests.push(T('ANOVA('));
+  return { tabs: [
+    { name: 'EDIT', items: [{ l: 'Edit...', a: openGrid }, T('SortA('), T('SortD('), T('ClrList', 'ClrList ')] },
+    { name: 'CALC', items: [T('1-Var Stats', '1-Var Stats '), T('2-Var Stats', '2-Var Stats '), T('LinReg(ax+b)', 'LinReg(ax+b) '), T('LinReg(a+bx)', 'LinReg(a+bx) ')] },
+    { name: 'TESTS', items: tests }] };
+}
+function catalogMenu() {
+  var toks = Object.keys(TI.FN).concat(Object.keys(TI.LAZY), ['Ans', 'rand', 'and', 'or', 'xor', 'nPr', 'nCr', '\u25baFrac', '\u25baDec', '1-Var Stats ', '2-Var Stats ', 'LinReg(ax+b) ', 'LinReg(a+bx) ', 'ClrList ', 'e', '\u03c0']);
+  var items = toks.map(function (t) { return { l: t.replace(/ $/, ''), t: [t] }; });
+  items.sort(function (a, b) { var x = a.l.toLowerCase(), y = b.l.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; });
+  return { numbered: false, tabs: [{ name: 'CATALOG', items: items }] };
+}
+function keyOf(i) { return i < 9 ? String(i + 1) : i === 9 ? '0' : String.fromCharCode(65 + i - 10); }
+function openMenu(name) {
+  if (U.mode !== 'home' && U.mode !== 'menu') return;
+  var def = name === 'stat' ? statMenu() : name === 'catalog' ? catalogMenu() : MENUS[name];
+  U.menu = { def: def, tab: 0, sel: 0, top: 0 }; U.mode = 'menu';
+}
+function menuItems() { return U.menu.def.tabs[U.menu.tab].items; }
+function menuChoose(i) {
+  var it = menuItems()[i]; if (!it) return;
+  if (it.a) { U.menu = null; it.a(); return; }
+  U.menu = null; U.mode = 'home'; homeInsert(it.t);
+}
+function menuKey(ch) {
+  var items = menuItems(), idx = -1, i;
+  if (U.menu.def.numbered === false) {
+    for (i = 0; i < items.length; i++) if (items[i].l.toUpperCase().charAt(0) === ch) { idx = i; break; }
+    if (idx >= 0) { U.menu.sel = idx; }
+    return;
+  }
+  for (i = 0; i < items.length; i++) if (keyOf(i) === ch) { idx = i; break; }
+  if (idx >= 0) menuChoose(idx);
+}
+function menuRows() {
+  var m = U.menu, rows = [], tabs = m.def.tabs, hc = [];
+  tabs.forEach(function (t, i) { hc = hc.concat(cellsStr(t.name, i === m.tab ? 'inv' : '')); hc.push({ c: ' ', k: '' }); });
+  rows.push({ cells: hc.slice(0, COLS) });
+  var items = menuItems(), vis = ROWS - 1;
+  if (m.sel < m.top) m.top = m.sel; if (m.sel >= m.top + vis) m.top = m.sel - vis + 1;
+  for (var r = 0; r < vis; r++) {
+    var i = m.top + r; if (i >= items.length) break;
+    var lab = (m.def.numbered === false ? '' : keyOf(i) + ':') + items[i].l, cs = cellsStr(lab.slice(0, COLS), i === m.sel ? 'inv' : '');
+    if (i === m.sel) cs = padTo(cs, COLS, 'inv');
+    rows.push({ cells: cs.slice(0, COLS), attrs: ' data-i="' + i + '"' });
+  }
+  moreArrow(rows, m.top + vis < items.length);
+  return rows;
+}
+
+/* ---------- home ---------- */
+var OPSTART = ['+', '-', '*', '/', '^', '\u00b2', '\u00b3', '!', '\u207b\u00b9', '\u02e3\u221a', 'nPr', 'nCr', '=', '\u2260', '<', '>', '\u2264', '\u2265', 'and', 'or', 'xor'];
+function homeInsert(toks) {
+  if (!U.entry.length && OPSTART.indexOf(toks[0]) >= 0) toks = ['Ans'].concat(toks);
+  U.entry.splice.apply(U.entry, [U.cur, 0].concat(toks)); U.cur += toks.length; U.ehi = -1;
+}
+function pushEH(toks) { var s = toks.join('\u0001'); if (!U.eh.length || U.eh[U.eh.length - 1].join('\u0001') !== s) U.eh.push(toks.slice()); if (U.eh.length > 30) U.eh.shift(); U.ehi = -1; }
+function showErr(code, back, toks) { U.err = { code: code, back: back, toks: toks || [] }; U.errSel = 0; U.mode = 'error'; }
+function errCode(e) { return e && e.ti ? e.code : (e && e.name === 'RangeError' ? 'MEMORY' : 'SYNTAX'); }
+function homeEnter() {
+  var toks = U.entry.slice();
+  if (!toks.length) { if (!U.eh.length) return; toks = U.eh[U.eh.length - 1].slice(); }
+  try {
+    var r = TI.evaluate(toks), res, left = false;
+    if (r.t === 'val') { res = TI.fmtValue(r.v); left = Array.isArray(r.v); } else if (r.t === 'str') res = r.s; else res = 'Done';
+    U.hist.push({ tk: toks, res: res, left: left }); if (U.hist.length > 40) U.hist.shift();
+    pushEH(toks); U.entry = []; U.cur = 0;
+    if (r.t === 'screen') openResult(r.lines);
+    save();
+  } catch (e) { if (!e.ti) console.error(e); pushEH(toks); showErr(errCode(e), 'home', toks); }
+}
+function homeRows() {
+  var rows = [];
+  U.hist.forEach(function (h) {
+    chunk(tokCells(h.tk, null)).forEach(function (r) { rows.push({ cells: r }); });
+    var rc = cellsStr(h.res);
+    if (!h.left && rc.length <= COLS) rows.push({ cells: padLeft(rc) });
+    else chunk(rc).forEach(function (r) { rows.push({ cells: r }); });
+  });
+  chunk(tokCells(U.entry, U.cur)).forEach(function (r) { rows.push({ cells: r }); });
+  return rows;
+}
+
+/* ---------- result / error / mode ---------- */
+function openResult(lines) {
+  var rows = []; lines.forEach(function (l) { chunk(cellsStr(l)).forEach(function (r) { rows.push(r); }); });
+  U.result = { rows: rows, top: 0 }; U.mode = 'result';
+}
+function resultRows() {
+  var R = U.result, max = Math.max(0, R.rows.length - ROWS); R.top = Math.min(Math.max(0, R.top), max);
+  var rows = R.rows.slice(R.top, R.top + ROWS).map(function (c) { return { cells: c.slice() }; });
+  moreArrow(rows, R.top < max); return rows;
+}
+function errRows() {
+  var E = U.err, rows = [{ cells: cellsStr('ERR:' + E.code) }];
+  rows.push({ cells: padTo(cellsStr('1:Quit', U.errSel === 0 ? 'inv' : ''), COLS, U.errSel === 0 ? 'inv' : ''), attrs: ' data-i="0"' });
+  if (E.back === 'home') rows.push({ cells: padTo(cellsStr('2:Goto', U.errSel === 1 ? 'inv' : ''), COLS, U.errSel === 1 ? 'inv' : ''), attrs: ' data-i="1"' });
+  return rows;
+}
+function errChoose(i) {
+  var E = U.err; if (!E) return;
+  if (i === 1 && E.back === 'home') { U.entry = E.toks.slice(); U.cur = U.entry.length; U.mode = 'home'; }
+  else if (E.back === 'home') { U.entry = []; U.cur = 0; U.mode = 'home'; }
+  else U.mode = E.back;
+  U.err = null;
+}
+var MODE_ROWS = [
+  { opts: ['Normal', 'Sci', 'Eng'], gaps: [1, 1, 0], get: function () { return ['Normal', 'Sci', 'Eng'].indexOf(S.fmt); }, set: function (i) { S.fmt = ['Normal', 'Sci', 'Eng'][i]; } },
+  { opts: ['Float', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], gaps: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], get: function () { return S.dec === null ? 0 : S.dec + 1; }, set: function (i) { S.dec = i === 0 ? null : i - 1; } },
+  { opts: ['Radian', 'Degree'], gaps: [1, 0], get: function () { return S.angle === 'Radian' ? 0 : 1; }, set: function (i) { S.angle = i === 0 ? 'Radian' : 'Degree'; } }];
+function modeRows() {
+  var rows = MODE_ROWS.map(function (R, ri) {
+    var cells = [], sel = R.get();
+    R.opts.forEach(function (o, oi) {
+      var active = U.msel.r === ri && U.msel.c === oi, k = active ? 'cur' : (oi === sel ? 'inv' : '');
+      cellsStr(o, k).forEach(function (c) { c.o = oi; cells.push(c); });
+      if (R.gaps[oi]) cells.push({ c: ' ', k: '', o: oi });
+    });
+    return { cells: cells.slice(0, COLS), attrs: ' data-i="' + ri + '"' };
+  });
+  rows.push({ cells: [] }, { cells: cellsStr('ENTER: select') }, { cells: cellsStr('2nd MODE: QUIT') });
+  return rows;
+}
+function modeSelect() { var R = MODE_ROWS[U.msel.r]; R.set(U.msel.c); save(); }
+
+/* ---------- forms ---------- */
+function fv(id) { if (!FV[id]) { if (WIZ[id]) { FV[id] = {}; fillDefaults(id); } else FV[id] = TI.defaultVals(id); } return FV[id]; }
+function fillDefaults(id) {
+  var vals = FV[id], F = getForm(id);
+  for (var g = 0; g < 3; g++) F.fields(vals).forEach(function (f) {
+    if (f.type === 'calc' || f.type === 'title' || vals.hasOwnProperty(f.k)) return;
+    vals[f.k] = f.type === 'choice' ? f.def : TI.tokenize(f.def);
+  });
+}
+function curFields() { return getForm(U.form.id).fields(fv(U.form.id)); }
+function openForm(id) { fv(id); U.form = { id: id, cur: 0, top: 0, ec: 0, fresh: true }; U.menu = null; U.mode = 'form'; if (curFields()[0].type === 'title') U.form.cur = 1; formLand(); }
+function formLand() {
+  var f = curFields()[U.form.cur]; U.form.fresh = true;
+  U.form.ec = f && f.type === 'num' ? fv(U.form.id)[f.k].length : 0;
+}
+function formMove(d) { var fs = curFields(), n = fs.length; do { U.form.cur = (U.form.cur + d + n) % n; } while (fs[U.form.cur].type === 'title'); formLand(); }
+function setChoice(f, idx) { var vals = fv(U.form.id); vals[f.k] = idx; fillDefaults(U.form.id); var n = curFields().length; if (U.form.cur >= n) U.form.cur = n - 1; }
+function choiceTok(f, t) {
+  var i = f.opts.indexOf(t);
+  if (i < 0 && /^[1-6]$/.test(t) && f.opts[0] === 'L1') i = +t - 1;
+  if (i >= 0) setChoice(f, i);
+}
+function formInsert(toks) {
+  var f = curFields()[U.form.cur], vals = fv(U.form.id);
+  if (f.type === 'num') {
+    if (U.form.fresh) { vals[f.k] = []; U.form.ec = 0; U.form.fresh = false; }
+    vals[f.k].splice.apply(vals[f.k], [U.form.ec, 0].concat(toks)); U.form.ec += toks.length;
+  } else if (f.type === 'choice' && toks.length === 1) choiceTok(f, toks[0]);
+}
+function formRunCalc() {
+  try { var lines = TI.runForm(U.form.id, fv(U.form.id)); openResult(lines); save(); }
+  catch (e) { if (!e.ti) console.error(e); showErr(errCode(e), 'form'); }
+}
+function wizPaste(run) {
+  var W = WIZ[U.form.id], vals = fv(U.form.id), parts = [], toks = [W.name];
+  W.spec.forEach(function (sp, i) { parts.push(vals['a' + i] || []); });
+  while (parts.length && !parts[parts.length - 1].length) parts.pop();
+  if (!parts.length || parts.some(function (p) { return !p.length; })) { showErr('SYNTAX', 'form'); return; }
+  parts.forEach(function (p, i) { if (i) toks.push(','); toks = toks.concat(p); });
+  toks.push(')');
+  U.form = null; U.mode = 'home'; homeInsert(toks);
+  if (run) homeEnter();
+}
+function formEnter() {
+  var f = curFields()[U.form.cur];
+  if (f.type === 'calc') { if (WIZ[U.form.id]) wizPaste(f.k === '_calc'); else formRunCalc(); } else formMove(1);
+}
+function formLR(d) {
+  var f = curFields()[U.form.cur], vals = fv(U.form.id);
+  if (f.type === 'choice') { var n = f.opts.length; setChoice(f, (vals[f.k] + d + n) % n); }
+  else if (f.type === 'num') { if (U.form.fresh) U.form.fresh = false; U.form.ec = Math.min(Math.max(0, U.form.ec + d), vals[f.k].length); }
+}
+function formDel() {
+  var f = curFields()[U.form.cur], vals = fv(U.form.id); if (f.type !== 'num') return;
+  var t = vals[f.k];
+  if (U.form.fresh) { vals[f.k] = []; U.form.ec = 0; U.form.fresh = false; return; }
+  if (U.form.ec < t.length) t.splice(U.form.ec, 1); else if (U.form.ec > 0) { U.form.ec--; t.splice(U.form.ec, 1); }
+}
+function formClear() {
+  var f = curFields()[U.form.cur], vals = fv(U.form.id);
+  if (f.type === 'num' && vals[f.k].length) { vals[f.k] = []; U.form.ec = 0; U.form.fresh = false; } else U.mode = 'home';
+}
+function formRows() {
+  var F = U.form, fields = curFields(), vals = fv(F.id);
+  if (F.cur >= fields.length) F.cur = fields.length - 1;
+  if (F.cur < F.top) F.top = F.cur; if (F.cur >= F.top + ROWS) F.top = F.cur - ROWS + 1;
+  var rows = [];
+  fields.slice(F.top, F.top + ROWS).forEach(function (f, ri) {
+    var idx = F.top + ri, active = idx === F.cur, cells = cellsStr(f.label, '');
+    if (f.type === 'choice') {
+      var sel = vals[f.k];
+      if (!f.single && f.label.length + f.opts.join(' ').length <= COLS) {
+        f.opts.forEach(function (o, oi) {
+          cellsStr(o, oi === sel ? (active ? 'cur' : 'inv') : '').forEach(function (c) { c.o = oi; cells.push(c); });
+          if (oi < f.opts.length - 1) cells.push({ c: ' ', k: '', o: oi });
+        });
+      } else cellsStr(f.opts[sel], active ? 'cur' : 'inv').forEach(function (c) { c.o = sel; cells.push(c); });
+    } else if (f.type === 'num') {
+      var tk = vals[f.k];
+      if (active && F.fresh) { var vc = tokCells(tk, null).map(function (c) { return { c: c.c, k: 'inv' }; }); if (!vc.length) vc.push({ c: ' ', k: 'inv' }); cells = cells.concat(vc); }
+      else cells = cells.concat(tokCells(tk, active ? F.ec : null));
+    } else if (f.type === 'title') cells = padTo(cellsStr(f.label, 'inv'), COLS, 'inv');
+    else cells = cellsStr(f.label, active ? 'inv' : '');
+    if (cells.length > COLS) cells = cells.slice(cells.length - COLS);
+    rows.push({ cells: cells, attrs: ' data-i="' + idx + '"' });
+  });
+  moreArrow(rows, F.top + ROWS < fields.length);
+  return rows;
+}
+
+/* ---------- list editor ---------- */
+function openGrid() { U.grid = { col: 0, row: 0, left: 0, top: 0, buf: [], bc: 0, fresh: true }; U.menu = null; U.mode = 'grid'; }
+function gridList() { return ST.lists['L' + (U.grid.col + 1)]; }
+function gridInsert(toks) {
+  var G = U.grid; if (G.row < 0) return;
+  if (G.fresh) { G.buf = []; G.bc = 0; G.fresh = false; }
+  G.buf.splice.apply(G.buf, [G.bc, 0].concat(toks)); G.bc += toks.length;
+}
+function gridCommit() {
+  var G = U.grid; if (G.fresh || G.row < 0) return true;
+  try {
+    var v = TI.evalTokensValue(G.buf); if (typeof v !== 'number') throw { ti: true, code: 'DATA TYPE' };
+    var L = gridList(); if (G.row > L.length) G.row = L.length; if (G.row >= 999) throw { ti: true, code: 'INVALID DIM' };
+    L[G.row] = v; G.buf = []; G.bc = 0; G.fresh = true; save(); return true;
+  } catch (e) { if (!e.ti) console.error(e); G.buf = []; G.bc = 0; G.fresh = true; showErr(errCode(e), 'grid'); return false; }
+}
+function gridMove(dr, dc) {
+  var G = U.grid; if (!gridCommit()) return;
+  if (dc) { G.col = Math.min(5, Math.max(0, G.col + dc)); G.row = Math.min(G.row, gridList().length); }
+  if (dr) { G.row = Math.max(-1, Math.min(gridList().length, G.row + dr)); }
+  G.fresh = true;
+}
+function gridEnter() { var G = U.grid; if (G.row < 0) return; if (gridCommit()) { if (G.row < Math.min(999, gridList().length + 1) - 0) G.row = Math.min(G.row + 1, gridList().length); } }
+function gridDel() {
+  var G = U.grid;
+  if (!G.fresh) { if (G.bc < G.buf.length) G.buf.splice(G.bc, 1); else if (G.bc > 0) { G.bc--; G.buf.splice(G.bc, 1); } if (!G.buf.length) { G.fresh = true; G.bc = 0; } return; }
+  var L = gridList(); if (G.row >= 0 && G.row < L.length) { L.splice(G.row, 1); save(); }
+}
+function gridClear() {
+  var G = U.grid;
+  if (!G.fresh) { G.buf = []; G.bc = 0; G.fresh = true; }
+  else if (G.row === -1) { ST.lists['L' + (G.col + 1)] = []; G.row = 0; save(); }
+  else U.mode = 'home';
+}
+function fitTxt(s, n) { return s.length > n ? s.slice(0, n - 1) + '\u2026' : s; }
+function gridRows() {
+  var G = U.grid, rows = [], c, i, vis = 6;
+  if (G.col < G.left) G.left = G.col; if (G.col > G.left + 2) G.left = G.col - 2;
+  var r0 = Math.max(G.row, 0); if (r0 < G.top) G.top = r0; if (r0 >= G.top + vis) G.top = r0 - vis + 1;
+  function pl(s, n) { while (s.length < n) s = ' ' + s; return s; }
+  function pc(s, n) { while (s.length < n) s = (s.length % 2 ? ' ' : '') + s + (s.length % 2 ? '' : ' '); return s; }
+  var hc = [{ c: ' ', k: '' }];
+  for (c = 0; c < 3; c++) { var ci = G.left + c; hc = hc.concat(cellsStr(pc('L' + (ci + 1), 5), G.row === -1 && ci === G.col ? 'inv' : '')); }
+  rows.push({ cells: hc });
+  for (i = 0; i < vis; i++) {
+    var ri = G.top + i, cells = [{ c: ' ', k: '' }];
+    for (c = 0; c < 3; c++) {
+      var cj = G.left + c, L = ST.lists['L' + (cj + 1)], txt = ri < L.length ? fitTxt(TI.fmt(L[ri]), 5) : '';
+      cells = cells.concat(cellsStr(pl(txt, 5), ri === G.row && cj === G.col ? 'inv' : ''));
+    }
+    rows.push({ cells: cells });
+  }
+  var nm = 'L' + (G.col + 1), e;
+  if (G.row === -1) e = cellsStr(nm + '=');
+  else {
+    var LL = ST.lists[nm]; e = cellsStr(nm + '(' + (G.row + 1) + ')=');
+    if (G.fresh) { if (G.row < LL.length) e = e.concat(cellsStr(TI.fmt(LL[G.row]))); } else e = e.concat(tokCells(G.buf, G.bc));
+  }
+  rows.push({ cells: e.slice(0, COLS), attrs: ' data-edit="1"' });
+  return rows;
+}
+
+
+/* ---------- 5x7 pixel font (96x64 LCD, 6x8 cells, like the real screen) ---------- */
+var FONT5 = {}, SPEC = {}, PX = 0, blinkOn = true, homeScroll = 0, view = { rows: [] };
+(function () {
+  var A = "00 00 00 00 00|00 00 5F 00 00|00 07 00 07 00|14 7F 14 7F 14|24 2A 7F 2A 12|23 13 08 64 62|36 49 55 22 50|00 05 03 00 00|00 1C 22 41 00|00 41 22 1C 00|08 2A 1C 2A 08|08 08 3E 08 08|00 50 30 00 00|08 08 08 08 08|00 60 60 00 00|20 10 08 04 02|3E 51 49 45 3E|00 42 7F 40 00|42 61 51 49 46|21 41 45 4B 31|18 14 12 7F 10|27 45 45 45 39|3C 4A 49 49 30|01 71 09 05 03|36 49 49 49 36|06 49 49 29 1E|00 36 36 00 00|00 56 36 00 00|08 14 22 41 00|14 14 14 14 14|00 41 22 14 08|02 01 51 09 06|32 49 79 41 3E|7E 11 11 11 7E|7F 49 49 49 36|3E 41 41 41 22|7F 41 41 22 1C|7F 49 49 49 41|7F 09 09 09 01|3E 41 49 49 7A|7F 08 08 08 7F|00 41 7F 41 00|20 40 41 3F 01|7F 08 14 22 41|7F 40 40 40 40|7F 02 0C 02 7F|7F 04 08 10 7F|3E 41 41 41 3E|7F 09 09 09 06|3E 41 51 21 5E|7F 09 19 29 46|46 49 49 49 31|01 01 7F 01 01|3F 40 40 40 3F|1F 20 40 20 1F|3F 40 38 40 3F|63 14 08 14 63|07 08 70 08 07|61 51 49 45 43|00 7F 41 41 00|02 04 08 10 20|00 41 41 7F 00|04 02 01 02 04|40 40 40 40 40|00 01 02 04 00|20 54 54 54 78|7F 48 44 44 38|38 44 44 44 20|38 44 44 48 7F|38 54 54 54 18|08 7E 09 01 02|08 14 54 54 3C|7F 08 04 04 78|00 44 7D 40 00|20 40 44 3D 00|7F 10 28 44 00|00 41 7F 40 00|7C 04 18 04 78|7C 08 04 04 78|38 44 44 44 38|7C 14 14 14 08|08 14 14 18 7C|7C 08 04 04 08|48 54 54 54 20|04 3F 44 40 20|3C 40 40 20 7C|1C 20 40 20 1C|3C 40 30 40 3C|44 28 10 28 44|0C 50 50 50 3C|44 64 54 4C 44|00 08 36 41 00|00 00 7F 00 00|00 41 36 08 00|08 08 2A 1C 08".split('|');
+  A.forEach(function (h, i) { FONT5[String.fromCharCode(32 + i)] = h.split(' ').map(function (x) { return parseInt(x, 16); }); });
+  var R = {"\u03c0": [".....", ".....", "11111", ".1.1.", ".1.1.", ".1.1.", ".1..1"], "\u03b8": [".111.", "1...1", "1...1", "11111", "1...1", "1...1", ".111."], "\u03c3": [".....", ".....", ".1111", "1.1..", "1.1..", "1.1..", ".11.."], "\u03a3": ["11111", "1....", ".1...", "..1..", ".1...", "1....", "11111"], "\u03c7": [".....", "1...1", ".1.1.", "..1..", "..1..", ".1.1.", "1...1"], "\u03bc": [".....", ".....", "1...1", "1...1", "1..11", ".11.1", "1...."], "\u03bb": ["1....", ".1...", "..1..", "..1..", ".1.1.", "1...1", "....."], "\u03b2": [".11..", "1..1.", "1..1.", "1.11.", "1..1.", "1..1.", "1.11."], "\u03c1": [".....", ".....", ".111.", "1...1", "1...1", "1111.", "1...."], "\u03b1": [".....", ".....", ".11.1", "1..11", "1..1.", "1..11", ".11.1"], "\u0394": ["..1..", ".1.1.", ".1.1.", "1...1", "1...1", "1...1", "11111"], "\u221a": ["....1", "....1", "....1", "1...1", ".1.1.", "..1..", "....."], "\u2192": [".....", "..1..", "...1.", "11111", "...1.", "..1..", "....."], "\u2191": ["..1..", ".111.", "1.1.1", "..1..", "..1..", "..1..", "..1.."], "\u2193": ["..1..", "..1..", "..1..", "..1..", "1.1.1", ".111.", "..1.."], "\u2260": ["....1", "...1.", "11111", "..1..", "11111", ".1...", "1...."], "\u2264": ["...1.", "..1..", ".1...", "..1..", "...1.", ".....", "11111"], "\u2265": [".1...", "..1..", "...1.", "..1..", ".1...", ".....", "11111"], "\u25ba": ["1....", "11...", "111..", "1111.", "111..", "11...", "1...."], "\u00b2": [".....", "11...", "..1..", ".1...", "1....", "111..", "....."], "\u00b3": [".....", "11...", "..1..", "11...", "..1..", "11...", "....."], "\u00b9": [".....", ".1...", "11...", ".1...", ".1...", "111..", "....."], "\u207b": [".....", ".....", "111..", ".....", ".....", ".....", "....."], "\u2026": [".....", ".....", ".....", ".....", ".....", ".....", "1.1.1"], "\u221e": [".....", ".....", "11.11", "1.1.1", "11.11", ".....", "....."], "\u02e3": [".....", ".....", "1.1..", ".1...", "1.1..", ".....", "....."], "\u00f7": ["..1..", ".....", "11111", ".....", "..1..", ".....", "....."]};
+  Object.keys(R).forEach(function (ch) {
+    var rows = R[ch], cols = [0, 0, 0, 0, 0];
+    for (var r = 0; r < 7; r++) for (var c = 0; c < 5; c++) if (rows[r].charAt(c) === '1') cols[c] |= 1 << r;
+    SPEC[ch] = cols;
+  });
+})();
+var NEGCOLS = [0, 8, 8, 8, 0];
+var BLINK = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+function px1(ctx, x0, y0, c, r) { var g = PX >= 4 ? 1 : 0; ctx.fillRect(x0 + c * PX, y0 + r * PX, PX - g, PX - g); }
+function drawCell(ctx, cell, x0, y0) {
+  var ch = cell.c; if (!ch || ch === ' ') return;
+  if (cell.k === 'neg') { ctx.fillRect(x0 + CELLW * PX * 0.2, y0 + CELLH * PX * 0.5, CELLW * PX * 0.6, Math.max(1, PX * 0.9)); return; }
+  ctx.fillText(ch, x0, y0 + CELLH * PX * 0.78);
+}
+function draw() {
+  var cv = $('cv'), ctx = cv.getContext && cv.getContext('2d'); if (!ctx || !PX) return;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  var INK = '#0b1208', BG = '#b3c2a5'; ctx.font = '600 ' + FONTPX + 'px ' + FONTSTACK; ctx.textBaseline = 'alphabetic';
+  view.rows.forEach(function (row, ri) {
+    var y0 = ri * CELLH * PX;
+    if (row.attrs && row.attrs.indexOf('data-edit') >= 0 && ri > 0) { ctx.fillStyle = INK; ctx.fillRect(0, y0, cv.width, Math.max(1, PX * 0.6)); }
+    row.cells.forEach(function (cell, ci) {
+      if (ci >= COLS) return;
+      var x0 = ci * CELLW * PX, inv = cell.k === 'inv' || (cell.k === 'cur' && (blinkOn || !BLINK));
+      if (inv) { ctx.fillStyle = INK; ctx.fillRect(x0, y0, CELLW * PX, CELLH * PX); }
+      ctx.fillStyle = inv ? BG : INK;
+      drawCell(ctx, cell, x0, y0);
+    });
+  });
+}
+function rowIndex(row) { var m = row.attrs && /data-i="(\d+)"/.exec(row.attrs); return m ? +m[1] : null; }
+
+/* ---------- render ---------- */
+function render() {
+  var lcd = $('lcd'); lcd.classList.toggle('off', U.off);
+  if (U.off) { view.rows = []; draw(); updateStatus(); return; }
+  var rows;
+  switch (U.mode) {
+    case 'home': rows = homeRows(); break;
+    case 'menu': rows = menuRows(); break;
+    case 'form': rows = formRows(); break;
+    case 'grid': rows = gridRows(); break;
+    case 'result': rows = resultRows(); break;
+    case 'error': rows = errRows(); break;
+    case 'mode': rows = modeRows(); break;
+    default: rows = [];
+  }
+  if (U.mode === 'home') {
+    var n = rows.length, max = Math.max(0, n - ROWS); homeScroll = Math.min(Math.max(0, homeScroll), max);
+    rows = rows.slice(Math.max(0, n - ROWS - homeScroll), n - homeScroll);
+  } else rows = rows.slice(0, ROWS);
+  view.rows = rows; draw(); updateStatus();
+  $('cv').setAttribute('aria-label', 'Calculator screen: ' + rows.map(function (r) { return r.cells.map(function (c) { return c.c; }).join(''); }).join(' / '));
+}
+function updateStatus() {
+  var l = '';
+  if (U.second) l += '<b>2ND</b>';
+  if (U.alock) l += '<b>A-LOCK</b>'; else if (U.alpha) l += '<b>ALPHA</b>';
+  $('st-l').innerHTML = l;
+  $('st-r').innerHTML = (U.typeBuf ? '<i>' + U.typeBuf.replace(/</g, '') + '_</i>' : '') + '<b>' + (S.angle === 'Degree' ? 'DEG' : 'RAD') + '</b>';
+  var a = document.querySelector('[data-id="second"]'), b = document.querySelector('[data-id="alpha"]');
+  if (a) a.classList.toggle('lit', U.second); if (b) b.classList.toggle('lit', U.alpha || U.alock);
+}
+function fit() {
+  var sc = $('screen'), w = sc.clientWidth; if (!w) return false;
+  var dpr = window.devicePixelRatio || 1, uw = CELLW * COLS, uh = CELLH * ROWS;
+  PX = Math.max(1, Math.floor(w * dpr / uw));
+  var cv = $('cv'); cv.width = uw * PX; cv.height = uh * PX;
+  var m = cv.getContext && cv.getContext('2d');
+  if (m && m.measureText) { m.font = '600 100px ' + FONTSTACK; var adv = m.measureText('M').width / 100 || 0.6; FONTPX = Math.min(CELLW * PX / adv, CELLH * PX * 1.02); } else FONTPX = CELLW * PX / 0.6;
+  cv.style.width = (uw * PX / dpr) + 'px'; cv.style.height = (uh * PX / dpr) + 'px'; sc.style.height = (uh * PX / dpr) + 'px';
+  return true;
+}
+
+/* ---------- commands ---------- */
+function doCmd(c) {
+  var m = U.mode;
+  if (c === 'on') { U.off = false; return; }
+  if (c === 'off') { U.off = true; return; }
+  if (c === 'quit') { U.menu = null; U.err = null; U.mode = 'home'; return; }
+  if (c === 'mode') { if (m === 'home') { U.mode = 'mode'; } return; }
+  if (c === 'entry') { if (m === 'home' && U.eh.length) { U.entry = U.eh[U.eh.length - 1].slice(); U.cur = U.entry.length; } return; }
+  if (c === 'enter') {
+    if (m === 'home') homeEnter(); else if (m === 'menu') menuChoose(U.menu.sel); else if (m === 'form') formEnter();
+    else if (m === 'grid') gridEnter(); else if (m === 'result') U.mode = 'home'; else if (m === 'error') errChoose(U.errSel);
+    else if (m === 'mode') modeSelect();
+    return;
+  }
+  if (c === 'clear') {
+    if (m === 'home') { if (U.entry.length) { U.entry = []; U.cur = 0; } else U.hist = []; U.ehi = -1; }
+    else if (m === 'form') formClear(); else if (m === 'grid') gridClear(); else if (m === 'error') errChoose(0);
+    else { U.menu = null; U.mode = 'home'; }
+    return;
+  }
+  if (c === 'del') {
+    if (m === 'home') { if (U.cur < U.entry.length) U.entry.splice(U.cur, 1); else if (U.cur > 0) { U.cur--; U.entry.splice(U.cur, 1); } U.ehi = -1; }
+    else if (m === 'form') formDel(); else if (m === 'grid') gridDel();
+    return;
+  }
+  var d = c === 'up' ? -1 : c === 'down' ? 1 : 0, h = c === 'left' ? -1 : c === 'right' ? 1 : 0;
+  if (m === 'home') {
+    if (h) U.cur = Math.min(U.entry.length, Math.max(0, U.cur + h));
+    else if (d) {
+      if (U.entry.length && U.ehi < 0) U.cur = Math.min(U.entry.length, Math.max(0, U.cur + d * COLS));
+      else if (d < 0 && U.eh.length) { U.ehi = U.ehi < 0 ? U.eh.length - 1 : Math.max(0, U.ehi - 1); U.entry = U.eh[U.ehi].slice(); U.cur = U.entry.length; }
+      else if (d > 0 && U.ehi >= 0) { U.ehi++; if (U.ehi >= U.eh.length) { U.ehi = -1; U.entry = []; U.cur = 0; } else { U.entry = U.eh[U.ehi].slice(); U.cur = U.entry.length; } }
+    }
+  } else if (m === 'menu') {
+    var M = U.menu;
+    if (d) { var n = menuItems().length; M.sel = (M.sel + d + n) % n; }
+    if (h) { var tn = M.def.tabs.length; M.tab = (M.tab + h + tn) % tn; M.sel = 0; M.top = 0; }
+  } else if (m === 'form') { if (d) formMove(d); else if (h) formLR(h); }
+  else if (m === 'grid') gridMove(d, h);
+  else if (m === 'result') { if (d) U.result.top += d; }
+  else if (m === 'error') { if (d && U.err.back === 'home') U.errSel = U.errSel ? 0 : 1; }
+  else if (m === 'mode') {
+    if (d) { U.msel.r = (U.msel.r + d + 3) % 3; U.msel.c = Math.min(U.msel.c, MODE_ROWS[U.msel.r].opts.length - 1); }
+    if (h) { var on = MODE_ROWS[U.msel.r].opts.length; U.msel.c = (U.msel.c + h + on) % on; }
+  }
+}
+function insertTokens(toks) {
+  switch (U.mode) {
+    case 'home': homeInsert(toks); break;
+    case 'menu': if (toks.length === 1 && /^[0-9A-Z\u03b8]$/.test(toks[0])) menuKey(toks[0]); break;
+    case 'form': formInsert(toks); break;
+    case 'grid': gridInsert(toks); break;
+    case 'error': if (toks[0] === '1' || toks[0] === '2') errChoose(+toks[0] - 1); break;
+  }
+}
+function runAction(a) {
+  if (a.charAt(0) === '@') doCmd(a.slice(1));
+  else if (a.charAt(0) === '#') openMenu(a.slice(1));
+  else insertTokens([a]);
+}
+
+/* ---------- keypad ---------- */
+var LET = function (id, lab, cls, n, extra) { var o = { id: id, lab: lab, cls: cls, n: n }; for (var k in extra) o[k] = extra[k]; return o; };
+var KEYDEFS = [
+  LET('second', '2nd', 'k-2nd'), LET('mode', 'MODE', 'k-fn', '@mode', { s: '@quit', sl: 'QUIT' }), LET('del', 'DEL', 'k-fn', '@del'),
+  LET('alpha', 'ALPHA', 'k-alpha', null, { sl: 'A-LOCK' }), LET('xt', 'X,T,\u03b8,n', 'k-fn', 'X'), LET('stat', 'STAT', 'k-fn', '#stat', { s: '#list', sl: 'LIST' }),
+  LET('math', 'MATH', 'k-fn', '#math', { s: '#test', sl: 'TEST', a: 'A' }), LET('distr', 'DISTR', 'k-fn', '#distr', { a: 'B' }),
+  LET('list', 'LIST', 'k-fn', '#list', { a: 'C' }), LET('vars', 'VARS', 'k-fn', '#vars', { s: '#distr', sl: 'DISTR' }), LET('clear', 'CLEAR', 'k-fn', '@clear'),
+  LET('inv', 'x\u207b\u00b9', 'k-fn', '\u207b\u00b9', { a: 'D' }),
+  LET('sin', 'SIN', 'k-fn', 'sin(', { s: 'sin\u207b\u00b9(', sl: 'sin\u207b\u00b9', a: 'E' }),
+  LET('cos', 'COS', 'k-fn', 'cos(', { s: 'cos\u207b\u00b9(', sl: 'cos\u207b\u00b9', a: 'F' }),
+  LET('tan', 'TAN', 'k-fn', 'tan(', { s: 'tan\u207b\u00b9(', sl: 'tan\u207b\u00b9', a: 'G' }),
+  LET('pow', '^', 'k-fn', '^', { s: '\u03c0', sl: '\u03c0', a: 'H' }),
+  LET('sq', 'x\u00b2', 'k-fn', '\u00b2', { s: '\u221a(', sl: '\u221a', a: 'I' }),
+  LET('comma', ',', 'k-fn', ',', { s: '\u1d07', sl: 'EE', a: 'J' }),
+  LET('lp', '(', 'k-fn', '(', { s: '{', sl: '{', a: 'K' }), LET('rp', ')', 'k-fn', ')', { s: '}', sl: '}', a: 'L' }),
+  LET('div', '\u00f7', 'k-op', '/', { s: 'e', sl: 'e', a: 'M' }),
+  LET('log', 'LOG', 'k-fn', 'log(', { s: '10^(', sl: '10\u02e3', a: 'N' }),
+  LET('7', '7', 'k-num', '7', { a: 'O' }), LET('8', '8', 'k-num', '8', { a: 'P' }), LET('9', '9', 'k-num', '9', { a: 'Q' }),
+  LET('mul', '\u00d7', 'k-op', '*', { a: 'R' }),
+  LET('ln', 'LN', 'k-fn', 'ln(', { s: 'e^(', sl: 'e\u02e3', a: 'S' }),
+  LET('4', '4', 'k-num', '4', { s: 'L4', sl: 'L4', a: 'T' }), LET('5', '5', 'k-num', '5', { s: 'L5', sl: 'L5', a: 'U' }), LET('6', '6', 'k-num', '6', { s: 'L6', sl: 'L6', a: 'V' }),
+  LET('sub', '\u2212', 'k-op', '-', { a: 'W' }),
+  LET('sto', 'STO\u25b8', 'k-fn', '\u2192', { a: 'X' }),
+  LET('1', '1', 'k-num', '1', { s: 'L1', sl: 'L1', a: 'Y' }), LET('2', '2', 'k-num', '2', { s: 'L2', sl: 'L2', a: 'Z' }), LET('3', '3', 'k-num', '3', { s: 'L3', sl: 'L3', a: '\u03b8' }),
+  LET('add', '+', 'k-op', '+'),
+  LET('on', 'ON', 'k-fn', '@on', { s: '@off', sl: 'OFF' }),
+  LET('0', '0', 'k-num', '0', { s: '#catalog', sl: 'CATALOG' }), LET('dot', '.', 'k-num', '.'),
+  LET('neg', '(\u2212)', 'k-num', '(-)', { s: 'Ans', sl: 'ANS' }),
+  LET('enter', 'ENTER', 'k-op', '@enter', { s: '@entry', sl: 'ENTRY' }),
+  LET('up', '', '', '@up'), LET('down', '', '', '@down'), LET('left', '', '', '@left'), LET('right', '', '', '@right')];
+var KMAP = {}; KEYDEFS.forEach(function (k) { KMAP[k.id] = k; });
+var LAYOUT = [['second', 'mode', 'del'], ['alpha', 'xt', 'stat'], ['math', 'distr', 'list', 'vars', 'clear'], ['inv', 'sin', 'cos', 'tan', 'pow'],
+  ['sq', 'comma', 'lp', 'rp', 'div'], ['log', '7', '8', '9', 'mul'], ['ln', '4', '5', '6', 'sub'], ['sto', '1', '2', '3', 'add'], ['on', '0', 'dot', 'neg', 'enter']];
+function buildKeys() {
+  var h = '';
+  LAYOUT.forEach(function (row, r) {
+    row.forEach(function (id, c) {
+      var k = KMAP[id];
+      h += '<div class="kc" style="grid-row:' + (r + 1) + ';grid-column:' + (c + 1) + '"><div class="lg"><span class="l2">' + (k.sl || '') + '</span><span class="la">' + (k.a || '') + '</span></div>' +
+        '<button type="button" class="key ' + k.cls + '" data-id="' + id + '">' + k.lab + '</button></div>';
+    });
+  });
+  h += '<div class="dpad" style="grid-row:1/3;grid-column:4/6"><button type="button" class="dp up" data-id="up" aria-label="Up">\u25b2</button><button type="button" class="dp left" data-id="left" aria-label="Left">\u25c0</button><button type="button" class="dp right" data-id="right" aria-label="Right">\u25b6</button><button type="button" class="dp down" data-id="down" aria-label="Down">\u25bc</button></div>';
+  $('keys').innerHTML = h;
+}
+function press(id) {
+  var k = KMAP[id]; if (!k) return; homeScroll = 0;
+  if (U.off && id !== 'on') return;
+  if (id === 'second') { U.second = !U.second; if (U.second) U.alpha = false; render(); return; }
+  if (id === 'alpha') {
+    if (U.second) { U.alock = !U.alock; U.alpha = false; U.second = false; }
+    else if (U.alock) U.alock = false; else U.alpha = !U.alpha;
+    render(); return;
+  }
+  var act = U.second ? k.s : (U.alpha || U.alock) ? k.a : k.n;
+  U.second = false; if (!U.alock) U.alpha = false;
+  if (act) runAction(act);
+  render();
+}
+
+/* ---------- physical keyboard ---------- */
+var TYPEMAP = null;
+function typeMap() {
+  if (TYPEMAP) return TYPEMAP;
+  TYPEMAP = {};
+  TI.tokList().forEach(function (t) {
+    var n = t.replace(/\($/, '').replace(/ $/, '').toLowerCase();
+    if (/^[a-z0-9]+$/.test(n) && n.length > 1) TYPEMAP[n] = t;
+  });
+  var alias = { pi: '\u03c0', ans: 'Ans', asin: 'sin\u207b\u00b9(', acos: 'cos\u207b\u00b9(', atan: 'tan\u207b\u00b9(', sqrt: '\u221a(', cbrt: '\u00b3\u221a(', exp: 'e^(',
+    chi2pdf: '\u03c7\u00b2pdf(', chi2cdf: '\u03c7\u00b2cdf(', deltalist: '\u0394List(', frac: '\u25baFrac', dec: '\u25baDec', sorta: 'SortA(', sortd: 'SortD(', clrlist: 'ClrList ' };
+  for (var k in alias) TYPEMAP[k] = alias[k];
+  return TYPEMAP;
+}
+function curBefore() {
+  if (U.mode === 'home') return U.entry.slice(0, U.cur);
+  if (U.mode === 'grid') return U.grid.fresh ? [] : U.grid.buf.slice(0, U.grid.bc);
+  if (U.mode === 'form') { var f = curFields()[U.form.cur]; return f.type === 'num' && !U.form.fresh ? fv(U.form.id)[f.k].slice(0, U.form.ec) : []; }
+  return [];
+}
+function typeFlush(next) {
+  var buf = U.typeBuf; U.typeBuf = ''; if (!buf) return false;
+  var low = buf.toLowerCase(), consumed = false, toks = [];
+  if (buf.length === 1) {
+    if (low === 'l' && /^[1-6]$/.test(next || '')) { toks = ['L' + next]; consumed = true; }
+    else if (buf === 'e') toks = ['e'];
+    else toks = [buf.toUpperCase()];
+  } else {
+    var t = typeMap()[low];
+    if (t) { toks = [t]; if (TI.isFuncTok(t) && next === '(') consumed = true; }
+    else toks = buf.toUpperCase().split('');
+  }
+  var legal = toks.filter(function (x) { return x.length > 1 || /[A-Z\u03b8e\u03c0]/.test(x); });
+  if (legal.length) insertTokens(legal);
+  return consumed;
+}
+function onKey(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  var k = e.key, handled = true; homeScroll = 0;
+  if (U.off) { if (k === 'Enter') { U.off = false; render(); e.preventDefault(); } return; }
+  if (/^[a-zA-Z]$/.test(k)) {
+    if (U.mode === 'menu') menuKey(k.toUpperCase());
+    else if (U.mode === 'home' || U.mode === 'form' || U.mode === 'grid') U.typeBuf += k;
+    else if (U.mode === 'error') { /* ignore */ }
+    render(); e.preventDefault(); return;
+  }
+  var map = { '+': '+', '*': '*', '/': '/', '^': '^', '(': '(', ')': ')', ',': ',', '.': '.', '=': '=', '<': '<', '>': '>', '!': '!', '{': '{', '}': '}' };
+  var consumed = false;
+  if (k.length === 1 || k === 'Enter' || k === 'Backspace' || k === 'Delete' || k === 'Escape' || k.indexOf('Arrow') === 0) consumed = typeFlush(/^[0-9(]$/.test(k) ? k : '');
+  if (/^[0-9]$/.test(k)) { if (!consumed) insertTokens([k]); }
+  else if (k === '(' && consumed) { /* function token already includes the paren */ }
+  else if (map[k]) insertTokens([map[k]]);
+  else if (k === '-') insertTokens([TI.isUnaryCtx(curBefore()) ? '(-)' : '-']);
+  else if (k === 'Enter') doCmd('enter');
+  else if (k === 'Backspace' || k === 'Delete') doCmd('del');
+  else if (k === 'Escape') doCmd('clear');
+  else if (k === 'ArrowUp') doCmd('up'); else if (k === 'ArrowDown') doCmd('down');
+  else if (k === 'ArrowLeft') doCmd('left'); else if (k === 'ArrowRight') doCmd('right');
+  else handled = false;
+  if (handled) { render(); e.preventDefault(); }
+}
+
+/* ---------- persistence ---------- */
+var SKEY = 'ti84-stats-emulator-v1';
+function save() {
+  try {
+    localStorage.setItem(SKEY, JSON.stringify({ lists: ST.lists, vars: ST.vars, ans: ST.ans, S: S, hist: U.hist.slice(-30), eh: U.eh.slice(-30) }));
+  } catch (e) { /* storage unavailable */ }
+}
+function load() {
+  try {
+    var j = JSON.parse(localStorage.getItem(SKEY) || 'null'); if (!j) return;
+    TI.LISTNAMES.forEach(function (n) { if (Array.isArray(j.lists[n])) ST.lists[n] = j.lists[n].filter(function (x) { return typeof x === 'number'; }); });
+    for (var k in j.vars) if (ST.vars.hasOwnProperty(k) && typeof j.vars[k] === 'number') ST.vars[k] = j.vars[k];
+    if (typeof j.ans === 'number' || Array.isArray(j.ans)) ST.ans = j.ans;
+    if (j.S) { S.fmt = j.S.fmt || 'Normal'; S.dec = j.S.dec === null || typeof j.S.dec === 'number' ? j.S.dec : null; S.angle = j.S.angle === 'Degree' ? 'Degree' : 'Radian'; }
+    if (Array.isArray(j.hist)) U.hist = j.hist.filter(function (h) { return h && Array.isArray(h.tk) && typeof h.res === 'string'; });
+    if (Array.isArray(j.eh)) U.eh = j.eh.filter(Array.isArray);
+  } catch (e) { /* ignore corrupt state */ }
+}
+
+/* ---------- wiring ---------- */
+function loadExample(str) {
+  U.menu = null; U.err = null; U.mode = 'home'; U.second = false; U.alpha = false; U.off = false;
+  U.entry = TI.tokenize(str); U.cur = U.entry.length; U.ehi = -1; render();
+  var c = $('calc'); if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function init() {
+  load(); buildKeys(); fit();
+  $('keys').addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-id]') : null; if (b) press(b.getAttribute('data-id')); });
+  $('screen').addEventListener('click', function (e) {
+    if (U.off) return;
+    var cv = $('cv'), r = cv.getBoundingClientRect();
+    var ry = Math.floor((e.clientY - r.top) / (r.height / ROWS)), cx = Math.floor((e.clientX - r.left) / (r.width / COLS));
+    var row = view.rows[ry]; if (!row) return;
+    var i = rowIndex(row); if (i === null) return;
+    var cell = row.cells[cx], o = cell && cell.o !== undefined ? cell.o : null;
+    if (U.mode === 'menu') { U.menu.sel = i; menuChoose(i); }
+    else if (U.mode === 'form') {
+      var f = curFields()[i]; if (f.type === 'title') return;
+      U.form.cur = i; formLand();
+      if (f.type === 'calc') formEnter(); else if (f.type === 'choice' && o !== null) setChoice(f, o);
+    }
+    else if (U.mode === 'error') errChoose(i);
+    else if (U.mode === 'mode') { U.msel.r = i; if (o !== null) { U.msel.c = o; modeSelect(); } }
+    render();
+  });
+  $('screen').addEventListener('wheel', function (e) {
+    if (U.mode !== 'home') return; e.preventDefault();
+    homeScroll += e.deltaY > 0 ? -1 : 1; render();
+  }, { passive: false });
+  var ty = null;
+  $('screen').addEventListener('touchstart', function (e) { ty = e.touches[0].clientY; }, { passive: true });
+  $('screen').addEventListener('touchmove', function (e) {
+    if (U.mode !== 'home' || ty === null) return;
+    var step = CELLH * PX / (window.devicePixelRatio || 1), d = Math.round((ty - e.touches[0].clientY) / step);
+    if (d) { homeScroll -= d; ty = e.touches[0].clientY; render(); }
+  }, { passive: true });
+  setInterval(function () { blinkOn = !blinkOn; if (!U.off) draw(); }, 550);
+  document.addEventListener('click', function (e) {
+    var c = e.target.closest ? e.target.closest('[data-ex]') : null; if (c) loadExample(c.getAttribute('data-ex'));
+  });
+  document.addEventListener('keydown', onKey);
+  function refit() { fit(); render(); }
+  window.addEventListener('resize', refit); window.addEventListener('orientationchange', function () { setTimeout(refit, 150); });
+  window.addEventListener('load', refit); setTimeout(refit, 60); setTimeout(refit, 400);
+  if (window.ResizeObserver) new ResizeObserver(refit).observe($('screen'));
+  render();
+  window.__ti = { U: U, press: press, render: render, onKey: onKey, loadExample: loadExample, view: view };
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+</script>
+</body>
+</html>
